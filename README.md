@@ -261,6 +261,18 @@ The following are tracked or observable:
 | Episodic correction utilization | ChromaDB corrections retrieved per run (zero = retrieval not matching) | — |
 | User satisfaction rate | Ratio of satisfied to total feedback submissions | — |
 
+### Does Agent Quality Degrade Over Time?
+
+This was a deliberate design concern. Several mechanisms work together to prevent it:
+
+- **Episodic memory is write-protected from bad runs** — corrections are only stored when the user explicitly submits feedback after reviewing the digest. A failed or low-quality run teaches the agent nothing.
+- **Recency weighting decays stale corrections** — stored feedback loses influence over time (full weight ≤30 days, 0.75x ≤60 days, 0.55x older, flagged stale beyond that). Outdated preferences don't permanently skew future rankings.
+- **Shadow promotion requires sustained quality** — Agent B cannot replace the deterministic highlights path unless it passes quality gates over two consecutive weekly reports. A single good run is not enough.
+- **LLM output is validated every run** — malformed or out-of-range outputs are caught and replaced with deterministic fallbacks rather than being passed downstream.
+- **Hard item limits prevent context drift** — the ranking prompt is bounded to ~24 items regardless of how much data accumulates in Gmail or Calendar over time.
+
+The net effect is that the agent can improve through feedback but has no mechanism to silently degrade — quality changes require either explicit user action or sustained metric improvement.
+
 ### Key Trade-offs
 
 - **Autonomy vs. reliability:** The agent halts rather than produces output under uncertain conditions. A failed run is preferable to a plausibly incorrect one.
