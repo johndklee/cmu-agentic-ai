@@ -163,6 +163,17 @@ The following OAuth scopes are requested:
 
 Both `credentials.json` and `token_google.json` are in `.gitignore` and will never be committed.
 
+## Ports
+
+| Port | Service | Notes |
+|---|---|---|
+| **8000** | FastAPI backend + served frontend | Main app URL in production — `http://localhost:8000` |
+| **5173** | Vite dev server (frontend only) | Only used when running frontend separately with `npm run dev` |
+| **8001** | FastMCP branch state server | Internal only — used by LangGraph nodes to share ToT candidate state; not exposed to the browser |
+| **11434** | Ollama | Local LLM server — used by the Ranking Strategist agent |
+
+`run.sh` kills any existing processes on ports 8000 and 8001 before starting.
+
 ## Run
 
 ```bash

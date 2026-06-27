@@ -62,6 +62,17 @@ bash scripts/setup_claude_code.sh --with-crewai
 - `--galileo-observability`: Enable Galileo observability to emit observability events
 - `--galileo-include-content`: Include raw prompt/response in Galileo observability events (requires `--galileo-observability`)
 
+## Ports
+
+| Port | Service | Notes |
+|---|---|---|
+| **8000** | FastAPI backend + served frontend | Main app — `http://localhost:8000` |
+| **5173** | Vite dev server (frontend only) | Only when running `npm run dev` separately |
+| **8001** | FastMCP branch state server | Internal — LangGraph nodes share ToT candidate state here |
+| **11434** | Ollama | Local LLM server used by the Ranking Strategist |
+
+`run.sh` kills any existing processes on ports 8000 and 8001 before starting.
+
 ## LLM Configuration
 
 Each agent has its own model — configuration is per-agent, not global:
