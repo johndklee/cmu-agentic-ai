@@ -1,6 +1,11 @@
 # cmu-agentic-ai
 
-Daily Digest agent that gathers data from Google services, weather, and news, then synthesizes a prioritized briefing using a Tree-of-Thought ranking pipeline with local and cloud LLMs.
+Daily Digest agent that gathers data from Google services, weather, and news, then synthesizes a prioritized briefing using a **two-level Tree-of-Thought (ToT) ranking pipeline**:
+
+- **L1** — Ranking Strategist (Ollama/qwen3:8b) generates 5 candidate rankings; Ranking Critic (Claude) scores all 5 and prunes to the top 2
+- **L2** — Strategist refines each of the 2 survivors into 2 variants (4 leaf candidates total); Critic selects the best one to synthesize into the final digest
+
+This two-level search was motivated by quality: a single-pass ranking produced inconsistent results, while the L1→prune→L2→select pattern significantly improved coherence and prioritization.
 
 ## System Requirements
 
@@ -104,8 +109,8 @@ Once the app is running at **http://localhost:8000**:
    - Check **Email daily digest** to receive the digest in your inbox after each run — the digest is sent from and to the email address you entered above, which must be the same Google account you authorized during Google OAuth setup
 
 3. **Generate your first digest** — go back to the main page and click **Generate Digest**
-   - The pipeline runs: fetches Gmail, Calendar, Tasks, News, and Weather → ranks items using Tree-of-Thought → synthesizes a briefing
-   - First run takes 1–2 minutes as the LLM processes candidates
+   - The pipeline runs: fetches Gmail, Calendar, Tasks, News, and Weather → L1 ToT generates 5 rankings → Critic prunes to top 2 → L2 ToT refines to 4 leaf candidates → Critic selects best → synthesizes final digest
+   - First run takes 1–2 minutes as the LLM processes all candidates
    - The digest appears on screen when complete
 
 4. **Submit feedback** — after reviewing the digest, use the feedback form at the bottom to rate it and add notes. Feedback is stored in episodic memory and improves future rankings.
