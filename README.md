@@ -262,7 +262,16 @@ cp .env.example .env
 
 ## Google Services Setup
 
-The agent reads Gmail, Google Calendar, and Google Tasks via OAuth 2.0. Setup is one-time.
+The agent reads Gmail, Google Calendar, and Google Tasks via OAuth 2.0. Tasks also requires **write** access — the agent automatically creates follow-up tasks when a VIP attendee on a calendar event has a recent email thread. Setup is one-time.
+
+The following OAuth scopes are requested:
+
+| Scope | Why |
+|---|---|
+| `gmail.readonly` | Read inbox for email ranking |
+| `gmail.send` | Send the daily digest email (if opted in) |
+| `calendar.readonly` | Read upcoming events for ranking |
+| `tasks` | Read open tasks + create VIP follow-up tasks (read/write) |
 
 **1. Create a Google Cloud Project**
 - Go to [console.cloud.google.com](https://console.cloud.google.com) and create a new project
@@ -278,6 +287,7 @@ The agent reads Gmail, Google Calendar, and Google Tasks via OAuth 2.0. Setup is
 - If prompted, configure the OAuth consent screen first:
   - User type: **External**
   - Add your Google account email as a test user
+  - Add the four scopes listed above under **Scopes**
 - Application type: **Desktop app**
 - Click **Create** then **Download JSON**
 - Rename the downloaded file to `credentials.json` and place it in the project root
@@ -285,7 +295,8 @@ The agent reads Gmail, Google Calendar, and Google Tasks via OAuth 2.0. Setup is
 **4. Authenticate**
 - Run the app — a browser window will open asking you to sign in with Google
 - Google will show a **"This app isn't verified"** warning screen — this is expected for a personal Cloud project in test mode. Click **Advanced** → **Go to (project name) (unsafe)** to proceed
-- After approving all requested permissions, `token_google.json` is saved automatically
+- Approve all requested permissions including Tasks read/write — this is required for VIP follow-up task creation
+- After approving, `token_google.json` is saved automatically
 - Subsequent runs authenticate silently with no browser prompt
 
 Both `credentials.json` and `token_google.json` are in `.gitignore` and will never be committed.
