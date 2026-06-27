@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All commands use the venv Python interpreter at `.venv312/bin/python`.
 
+**Run everything (recommended):**
+```bash
+./run.sh
+```
+Starts Ollama if not running, builds the frontend, kills any existing processes on ports 8000/8001, and launches the FastAPI backend.
+
 **Run the backend (FastAPI):**
 ```bash
 .venv312/bin/uvicorn server:app --reload
@@ -36,6 +42,11 @@ cd web && npm run build
 .venv312/bin/python -m unittest tests.test_memory_store
 ```
 
+**Install Python dependencies (including CrewAI — required):**
+```bash
+bash scripts/setup_claude_code.sh --with-crewai
+```
+
 **Prepare CI shadow log snapshot:**
 ```bash
 .venv312/bin/python scripts/prepare_ci_shadow_log.py --source .memory/key_highlights_shadow.jsonl --output ci/key_highlights_shadow.jsonl --tail 50
@@ -53,11 +64,9 @@ cd web && npm run build
 
 ## LLM Configuration
 
-Provider and model are resolved from preferences then environment variables:
-- `LLM_PROVIDER`: `ollama` (default) or `anthropic`
-- `LLM_MODEL`: explicit model override
-- `ANTHROPIC_MODEL` / `OLLAMA_MODEL`: provider-specific defaults
-- Default model: `llama3.1:8b` on Ollama
+Each agent has its own model — configuration is per-agent, not global:
+- Strategist uses Ollama (`OLLAMA_MODEL`, default `llama3.1:8b` — recommend `qwen3:8b` for 128K context)
+- Critic uses Claude (`ANTHROPIC_MODEL`, default `claude-opus-4-6`)
 - `OLLAMA_BASE_URL`: Ollama endpoint (default `http://localhost:11434`)
 - `OLLAMA_NUM_CTX`: optional context window override
 - `OLLAMA_REQUEST_TIMEOUT_SECONDS`: request timeout (default 120)
@@ -70,10 +79,13 @@ Provider and model are resolved from preferences then environment variables:
 
 The runtime is graph-only. `main.py` calls `run_workflow_digest()` and renders `digest_output`; there is no ReAct fallback path.
 
-Graph flow:
-- `START -> fetcher -> retrieval -> strategist -> critic`
-- Critic conditional routing: `strategist` (refine) or `synthesize`
-- `synthesize -> feedback -> END`
+Two-level Tree-of-Thought graph flow:
+- `START → fetcher → retrieval → strategist (L1) → critic`
+- Critic conditional routing after L1:
+  - `strategist_l2` — expand top-2 survivors into 4 leaf candidates
+  - `synthesize` — proceed directly (L2 complete)
+- `strategist_l2 → critic` (L2 scoring)
+- `synthesize → feedback → END`
 
 `workflow_controller.py:build_workflow_graph()` hard-requires `langgraph`; missing `langgraph` is treated as a runtime error.
 
@@ -83,7 +95,7 @@ Action modules expose `run_*_action()` functions consumed by workflow agents (fo
 - `location_action.py`: IP-based location with session-level preference override
 - `time_action.py`, `weather_action.py`, `news_action.py`: external API calls
 - `calendar_action.py`, `email_action.py`, `tasks_action.py`: Google API read/write via shared OAuth client in `google_services.py`
-- `key_highlights_action.py`: attendee-email overlap detection; creates Google Tasks follow-ups
+- `key_highlights_action.py`: attendee-email overlap detection; creates Google Tasks follow-ups (idempotent via deterministic marker in task notes)
 - `daily_digest_action.py`: builds structured JSON metadata (title, date, time, location) used by digest rendering
 
 ### Digest Rendering (`digest_rendering.py`)
