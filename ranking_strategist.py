@@ -56,13 +56,23 @@ def _build_rankable_items(raw_fetched_data: dict[str, Any]) -> list[dict[str, An
         )
 
     for index, task in enumerate(raw_fetched_data.get("tasks", []) or [], start=1):
+        due_str = task.get("due") or ""
+        is_overdue = False
+        if due_str:
+            try:
+                from datetime import datetime, timezone as _tz
+                due_dt = datetime.fromisoformat(due_str.replace("Z", "+00:00"))
+                is_overdue = due_dt < datetime.now(_tz.utc)
+            except Exception:
+                pass
         items.append(
             {
                 "item_id": f"tasks:{task.get('id') or index}",
                 "source": "tasks",
                 "summary": task.get("title") or "(untitled task)",
                 "signals": {
-                    "has_due": bool(task.get("due")),
+                    "has_due": bool(due_str),
+                    "is_overdue": is_overdue,
                 },
             }
         )
@@ -271,7 +281,15 @@ def _build_prompt(items: list[dict[str, Any]], corrections: list[dict[str, Any]]
         "Rank ALL available items if there are fewer than the minimum.\n"
         "Do not include markdown fences.\n\n"
         f"Rankable items ({len(items)} total):\n{json.dumps(items, ensure_ascii=True)}\n\n"
-        f"Retrieved corrections:\n{json.dumps(corrections[:20], ensure_ascii=True)}\n"
+        "MANDATORY USER RULES — you MUST apply every rule below to every candidate. "
+        "Violating any rule makes the candidate invalid:\n"
+        + "\n".join(
+            f"- {c.get('document', '').split('correction_text=')[-1].split(' | ')[0].strip()}"
+            for c in corrections[:20]
+            if c.get("document")
+        )
+        + "\n\n"
+        f"Full correction records:\n{json.dumps(corrections[:20], ensure_ascii=True)}\n"
     )
 
 
