@@ -73,6 +73,25 @@ Or start backend and frontend separately in dev mode:
 cd web && npm run dev                       # frontend on :5173
 ```
 
+## Your First Daily Digest
+
+Once the app is running at **http://localhost:8000**:
+
+1. **Check diagnostics** — the Diagnostics panel loads automatically. Confirm all sections show green before proceeding. Fix any red items (missing credentials, Ollama not reachable, etc.)
+
+2. **Set your preferences** — click **Settings** in the top nav:
+   - Enter your name and email address
+   - Set your location (used for weather)
+   - Add VIP email addresses (people whose emails get priority in ranking)
+   - Choose temperature unit and number of key highlights
+
+3. **Generate your first digest** — go back to the main page and click **Generate Digest**
+   - The pipeline runs: fetches Gmail, Calendar, Tasks, News, and Weather → ranks items using Tree-of-Thought → synthesizes a briefing
+   - First run takes 1–2 minutes as the LLM processes candidates
+   - The digest appears on screen when complete
+
+4. **Submit feedback** — after reviewing the digest, use the feedback form at the bottom to rate it and add notes. Feedback is stored in episodic memory and improves future rankings.
+
 ## Maintenance
 
 Reset preferences if needed:
