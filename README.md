@@ -88,6 +88,67 @@ The app runs at **http://localhost:8000**. At startup it shows a diagnostics pan
 
 > **macOS/Linux only.** `run.sh` requires zsh. On Windows, start Ollama manually and run the backend and frontend separately (see Run section below).
 
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in your keys. This file is in `.gitignore` and will never be committed.
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | **Yes** | Claude API key for the Ranking Critic — get at [console.anthropic.com](https://console.anthropic.com) |
+| `OLLAMA_MODEL` | **Yes** | Local model for the Ranking Strategist — e.g. `qwen3:8b` |
+| `OLLAMA_BASE_URL` | No | Ollama server URL (default: `http://localhost:11434`) |
+| `OLLAMA_NUM_CTX` | No | Context window override (uses model default if not set) |
+| `HF_TOKEN` | No | HuggingFace token for higher download rate limits — get at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
+| `GALILEO_OBSERVABILITY_ENABLED` | No | Set to `1` to emit LLM trace events to Galileo |
+| `GALILEO_API_KEY` | No | Required when Galileo observability is enabled |
+| `GALILEO_CONSOLE_URL` | No | Your Galileo project URL |
+| `GALILEO_INCLUDE_CONTENT` | No | Set to `1` to include raw prompt/response in Galileo events |
+
+## Google Services Setup
+
+The agent reads Gmail, Google Calendar, and Google Tasks via OAuth 2.0. Tasks also requires **write** access — the agent automatically creates follow-up tasks when a VIP attendee on a calendar event has a recent email thread. Setup is one-time and must be completed before the first run.
+
+The following OAuth scopes are requested:
+
+| Scope | Why |
+|---|---|
+| `gmail.readonly` | Read inbox for email ranking |
+| `gmail.send` | Send the daily digest email (if opted in) |
+| `calendar.readonly` | Read upcoming events for ranking |
+| `tasks` | Read open tasks + create VIP follow-up tasks (read/write) |
+
+**1. Create a Google Cloud Project**
+- Go to [console.cloud.google.com](https://console.cloud.google.com) and create a new project
+
+**2. Enable the APIs**
+- Go to **APIs & Services → Library** and enable:
+  - Gmail API
+  - Google Calendar API
+  - Tasks API
+
+**3. Create OAuth 2.0 Credentials**
+- Go to **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+- If prompted, configure the OAuth consent screen first:
+  - User type: **External**
+  - Add your Google account email as a test user
+  - Add the four scopes listed above under **Scopes**
+- Application type: **Desktop app**
+- Click **Create** then **Download JSON**
+- Rename the downloaded file to `credentials.json` and place it in the project root
+
+**4. Authenticate**
+- Run the app — a browser window will open asking you to sign in with Google
+- Google will show a **"This app isn't verified"** warning screen — this is expected for a personal Cloud project in test mode. Click **Advanced** → **Go to (project name) (unsafe)** to proceed
+- Approve all requested permissions including Tasks read/write — this is required for VIP follow-up task creation
+- After approving, `token_google.json` is saved automatically
+- Subsequent runs authenticate silently with no browser prompt
+
+Both `credentials.json` and `token_google.json` are in `.gitignore` and will never be committed.
+
 ## Run
 
 ```bash
@@ -239,67 +300,6 @@ In short: LangGraph is the workflow engine, CrewAI defines the agents and their 
 	- `daily_digest_action.py`: structured digest scaffold metadata (title, date/time, section availability).
 	- `google_services.py`: shared Google OAuth/service client bootstrap and error formatting.
 - `preferences.py`: local preference persistence and summarization logic.
-
-## Environment Variables
-
-Copy `.env.example` to `.env` and fill in your keys. This file is in `.gitignore` and will never be committed.
-
-```bash
-cp .env.example .env
-```
-
-| Variable | Required | Description |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | **Yes** | Claude API key for the Ranking Critic — get at [console.anthropic.com](https://console.anthropic.com) |
-| `OLLAMA_MODEL` | **Yes** | Local model for the Ranking Strategist — e.g. `qwen3:8b` |
-| `OLLAMA_BASE_URL` | No | Ollama server URL (default: `http://localhost:11434`) |
-| `OLLAMA_NUM_CTX` | No | Context window override (uses model default if not set) |
-| `HF_TOKEN` | No | HuggingFace token for higher download rate limits — get at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
-| `GALILEO_OBSERVABILITY_ENABLED` | No | Set to `1` to emit LLM trace events to Galileo |
-| `GALILEO_API_KEY` | No | Required when Galileo observability is enabled |
-| `GALILEO_CONSOLE_URL` | No | Your Galileo project URL |
-| `GALILEO_INCLUDE_CONTENT` | No | Set to `1` to include raw prompt/response in Galileo events |
-
-## Google Services Setup
-
-The agent reads Gmail, Google Calendar, and Google Tasks via OAuth 2.0. Tasks also requires **write** access — the agent automatically creates follow-up tasks when a VIP attendee on a calendar event has a recent email thread. Setup is one-time.
-
-The following OAuth scopes are requested:
-
-| Scope | Why |
-|---|---|
-| `gmail.readonly` | Read inbox for email ranking |
-| `gmail.send` | Send the daily digest email (if opted in) |
-| `calendar.readonly` | Read upcoming events for ranking |
-| `tasks` | Read open tasks + create VIP follow-up tasks (read/write) |
-
-**1. Create a Google Cloud Project**
-- Go to [console.cloud.google.com](https://console.cloud.google.com) and create a new project
-
-**2. Enable the APIs**
-- Go to **APIs & Services → Library** and enable:
-  - Gmail API
-  - Google Calendar API
-  - Tasks API
-
-**3. Create OAuth 2.0 Credentials**
-- Go to **APIs & Services → Credentials → Create Credentials → OAuth client ID**
-- If prompted, configure the OAuth consent screen first:
-  - User type: **External**
-  - Add your Google account email as a test user
-  - Add the four scopes listed above under **Scopes**
-- Application type: **Desktop app**
-- Click **Create** then **Download JSON**
-- Rename the downloaded file to `credentials.json` and place it in the project root
-
-**4. Authenticate**
-- Run the app — a browser window will open asking you to sign in with Google
-- Google will show a **"This app isn't verified"** warning screen — this is expected for a personal Cloud project in test mode. Click **Advanced** → **Go to (project name) (unsafe)** to proceed
-- Approve all requested permissions including Tasks read/write — this is required for VIP follow-up task creation
-- After approving, `token_google.json` is saved automatically
-- Subsequent runs authenticate silently with no browser prompt
-
-Both `credentials.json` and `token_google.json` are in `.gitignore` and will never be committed.
 
 ## Notes
 
