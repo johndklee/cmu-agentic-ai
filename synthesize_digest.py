@@ -151,6 +151,56 @@ def _build_digest_output(selected_ranking: dict[str, Any] | None, raw_fetched_da
     }
 
 
+def _enforce_episodic_corrections(
+    selected: dict[str, Any] | None,
+    raw_fetched_data: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Apply deterministic corrections that the LLM must follow but may miss.
+
+    Currently enforces:
+    - Overdue tasks → forced to high priority and bubbled to top of ranking
+    """
+    if not selected:
+        return selected
+
+    from datetime import datetime, timezone as _tz
+
+    tasks = raw_fetched_data.get("tasks") or []
+    overdue_ids: set[str] = set()
+    for i, task in enumerate(tasks, 1):
+        due = (task.get("due") or "").strip()
+        if not due:
+            continue
+        try:
+            due_dt = datetime.fromisoformat(due.replace("Z", "+00:00"))
+            if due_dt < datetime.now(_tz.utc):
+                overdue_ids.add(f"tasks:{task.get('id') or i}")
+        except Exception:
+            pass
+
+    if not overdue_ids:
+        return selected
+
+    ranking = list(selected.get("ranking") or [])
+    promoted, rest = [], []
+    for entry in ranking:
+        if not isinstance(entry, dict):
+            rest.append(entry)
+            continue
+        if entry.get("item_id") in overdue_ids:
+            entry = dict(entry)
+            entry["priority"] = "high"
+            if "overdue" not in (entry.get("reason") or "").lower():
+                entry["reason"] = "Overdue — " + (entry.get("reason") or "past due date")
+            promoted.append(entry)
+        else:
+            rest.append(entry)
+
+    result = dict(selected)
+    result["ranking"] = promoted + rest
+    return result
+
+
 def synthesize_digest(state: WorkflowState) -> WorkflowState:
     """Synthesize digest output from critic-selected candidate rankings."""
     next_state: WorkflowState = dict(state)
@@ -159,6 +209,7 @@ def synthesize_digest(state: WorkflowState) -> WorkflowState:
     scores = state.get("scores") if isinstance(state.get("scores"), list) else []
 
     selected = _select_best_candidate(candidate_rankings, scores)
+    selected = _enforce_episodic_corrections(selected, raw_fetched_data)
     next_state["selected_ranking"] = selected
     next_state["digest_output"] = _build_digest_output(selected, raw_fetched_data)
     return next_state
