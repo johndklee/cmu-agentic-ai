@@ -54,6 +54,8 @@ cp .env.example .env   # then fill in your keys
 
 The app runs at **http://localhost:8000**. At startup it shows a diagnostics panel confirming all services are connected.
 
+![Diagnostics Panel](docs/images/diagnostics_panel.png)
+
 > **macOS/Linux only.** `run.sh` requires zsh. On Windows, start Ollama manually and run the backend and frontend separately (see Run section below).
 
 ## Run
