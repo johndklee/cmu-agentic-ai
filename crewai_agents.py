@@ -202,6 +202,16 @@ def run_crewai_ranking_critic(candidate: dict[str, Any]) -> tuple[float, str]:
         crew = _build_critic_crew(task_description, use_ollama=use_ollama)
         result = crew.kickoff()
         text = _extract_text(result).strip()
+        # Strip markdown code fences if the LLM wraps output in ```json ... ```
+        import re as _re
+        match = _re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, _re.DOTALL)
+        if match:
+            text = match.group(1).strip()
+        # Also handle bare JSON object embedded in surrounding text
+        if not text.startswith("{"):
+            obj_match = _re.search(r"\{.*\}", text, _re.DOTALL)
+            if obj_match:
+                text = obj_match.group(0).strip()
         parsed = json.loads(text)
         coherence = float(parsed.get("coherence", 0.0))
         return max(0.0, min(1.0, coherence))
