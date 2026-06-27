@@ -84,7 +84,7 @@ Once the app is running at **http://localhost:8000**:
    - Set your location (used for weather)
    - Add VIP email addresses (people whose emails get priority in ranking)
    - Choose temperature unit and number of key highlights
-   - Check **Email daily digest** to receive the digest in your inbox after each run — the digest is sent to the email address you entered above, which must be the same Google account you authorized during Google OAuth setup
+   - Check **Email daily digest** to receive the digest in your inbox after each run — the digest is sent from and to the email address you entered above, which must be the same Google account you authorized during Google OAuth setup
 
 3. **Generate your first digest** — go back to the main page and click **Generate Digest**
    - The pipeline runs: fetches Gmail, Calendar, Tasks, News, and Weather → ranks items using Tree-of-Thought → synthesizes a briefing

@@ -11,7 +11,9 @@ from preferences import (
 )
 
 
-DAILY_DIGEST_FROM_EMAIL = "agent@example.com"
+# From address must match the authenticated Google account — Gmail rejects other senders.
+# We use the user's own email so the digest appears as sent from themselves.
+DAILY_DIGEST_FROM_EMAIL = None  # resolved at send time from user identity
 
 
 def parse_email_list(raw_text: str) -> list:
@@ -66,7 +68,7 @@ def maybe_send_digest_email(answer: str, subject: str = "", email_body: str = ""
     resolved_body = email_body if email_body else answer
     send_status = send_email_action(
         to_email=user_email,
-        from_email=DAILY_DIGEST_FROM_EMAIL,
+        from_email=user_email,
         subject=resolved_subject,
         body=resolved_body,
     )
