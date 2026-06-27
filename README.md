@@ -205,6 +205,10 @@ Once the app is running at **http://localhost:8000**:
    - Check **Email daily digest** to receive the digest in your inbox after each run — the digest is sent from and to the email address you entered above, which must be the same Google account you authorized during Google OAuth setup
 
 3. **Generate your first digest** — go back to the main page and click **Generate Digest**
+   - Each pipeline step streams live as it runs — completed steps show a checkmark, the active step shows a spinner with the LLM being used
+
+   ![Digest Progress](docs/images/digest_progress.png)
+
    - The pipeline runs: fetches Gmail, Calendar, Tasks, News, and Weather → L1 ToT generates 5 rankings → Critic prunes to top 2 → L2 ToT refines to 4 leaf candidates → Critic selects best → synthesizes final digest
    - First run takes 1–2 minutes as the LLM processes all candidates
    - The digest appears on screen when complete
