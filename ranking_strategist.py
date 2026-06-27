@@ -93,9 +93,18 @@ def _build_rankable_items(raw_fetched_data: dict[str, Any]) -> list[dict[str, An
             {
                 "item_id": "weather:current",
                 "source": "weather",
-                "summary": weather.get("description") or "Current weather",
+                "summary": (
+                    (weather.get("description") or "Current weather")
+                    + (f" ({weather['temperature_c']}°C / {round(weather['temperature_c'] * 9/5 + 32)}°F)"
+                       if weather.get("temperature_c") is not None else "")
+                ),
                 "signals": {
                     "temperature_c": weather.get("temperature_c"),
+                    "is_rainy": any(
+                        kw in (weather.get("description") or "").lower()
+                        for kw in ("rain", "drizzle", "shower", "thunder", "storm")
+                    ),
+                    "is_cold_below_10c": (weather.get("temperature_c") or 999) < 10,
                 },
             }
         )
