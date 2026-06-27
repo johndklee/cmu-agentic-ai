@@ -129,6 +129,18 @@ Reset preferences if needed:
 .venv312/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
+## Framework Roles
+
+Each framework has a distinct responsibility in the pipeline:
+
+| Framework | Role |
+|---|---|
+| **LangGraph** | Orchestrates the end-to-end workflow as a directed graph — manages node sequencing, conditional routing (e.g. critic decides whether to refine or proceed), and state passing between steps |
+| **LangChain Core** | Provides the LLM client abstraction used by the Critic to call Claude; also supplies tool-calling utilities used during candidate scoring |
+| **CrewAI** | Defines the two specialized agents — **Ranking Strategist** (uses Ollama/qwen3:8b to generate and refine candidate rankings) and **Ranking Critic** (uses Claude to score coherence and select winners) — and manages their role definitions and LLM bindings |
+
+In short: LangGraph is the workflow engine, CrewAI defines the agents and their models, and LangChain is the LLM interface layer that connects them to the actual APIs.
+
 ## Module Layout
 
 - `main.py`: application entrypoint and startup diagnostics.
