@@ -129,6 +129,16 @@ Reset preferences if needed:
 .venv312/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
+## Architecture Overview
+
+The app has two processes that run together:
+
+**Backend** (`server.py` — FastAPI, port 8000)
+Hosts all business logic: the LangGraph workflow, CrewAI agents, Google API calls, episodic memory, and the FastMCP branch state server. Exposes a REST + Server-Sent Events API that the frontend consumes. The digest generation pipeline runs entirely here.
+
+**Frontend** (`web/` — React + Vite, served from port 8000 in production)
+A single-page React app that provides the UI: the Diagnostics panel, digest display with live streaming progress, preferences/settings, and feedback form. In development mode it runs on port 5173 and proxies API calls to the backend on 8000.
+
 ## Framework Roles
 
 Each framework has a distinct responsibility in the pipeline:
