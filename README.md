@@ -11,6 +11,7 @@ Install these before cloning:
 | **Python** | **3.12 exactly** | [python.org](https://www.python.org/downloads/) or `brew install python@3.12` |
 | **Node.js** | 18+ | [nodejs.org](https://nodejs.org/) or `brew install node` |
 | **Ollama** | latest | [ollama.com](https://ollama.com/) — install the Mac app or `brew install ollama` |
+| **git** | any | pre-installed on macOS; or `brew install git` |
 
 > **Python 3.12 is required.** The setup script calls `python3.12` explicitly to create the virtual environment. Other versions will fail.
 
@@ -37,8 +38,8 @@ ollama pull qwen3:8b
 git clone https://github.com/johndklee/cmu-agentic-ai.git
 cd cmu-agentic-ai
 
-# 2. Install Python dependencies (creates .venv312/)
-bash scripts/setup_claude_code.sh
+# 2. Install Python dependencies including CrewAI (creates .venv312/)
+bash scripts/setup_claude_code.sh --with-crewai
 
 # 3. Install Node dependencies
 cd web && npm install && cd ..
@@ -53,6 +54,8 @@ cp .env.example .env   # then fill in your keys
 ```
 
 The app runs at **http://localhost:8000**. At startup it shows a diagnostics panel confirming all services are connected.
+
+> **First run note:** On first startup the embedding model (`sentence-transformers/all-MiniLM-L6-v2`, ~90MB) downloads automatically from HuggingFace. The app will appear to hang for 30–60 seconds with no output — this is normal. Subsequent starts are instant.
 
 ![Diagnostics Panel](docs/images/diagnostics_panel.png)
 
@@ -166,7 +169,8 @@ The agent reads Gmail, Google Calendar, and Google Tasks via OAuth 2.0. Setup is
 
 **4. Authenticate**
 - Run the app — a browser window will open asking you to sign in with Google
-- After approving, `token_google.json` is saved automatically
+- Google will show a **"This app isn't verified"** warning screen — this is expected for a personal Cloud project in test mode. Click **Advanced** → **Go to (project name) (unsafe)** to proceed
+- After approving all requested permissions, `token_google.json` is saved automatically
 - Subsequent runs authenticate silently with no browser prompt
 
 Both `credentials.json` and `token_google.json` are in `.gitignore` and will never be committed.
