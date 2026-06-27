@@ -123,6 +123,62 @@ Once the app is running at **http://localhost:8000**:
 
 4. **Submit feedback** — after reviewing the digest, use the feedback form at the bottom to rate it and add notes. Feedback is stored in episodic memory and improves future rankings.
 
+## Safety & Design Decisions
+
+### Privacy Boundary (Structural)
+
+Claude only receives a numbered list of items with rankings (high/medium/low) — no email content, no sender names, no event titles, no task details. All personal data is stripped before the API call by `prompt_redaction.py`. This is enforced in code, not policy — the cloud model cannot receive raw personal data regardless of what other parts of the system do.
+
+### LLM Output Validation
+
+All outputs from the Ollama strategist are validated before use:
+- Priority values are checked against an allowlist (`high`, `medium`, `low`)
+- Item IDs are checked against the set of actually fetched items
+- Candidates with invalid entries are silently dropped
+- If fewer than 5 valid candidates are returned or JSON is unparseable, a deterministic fallback ranking is substituted
+- Coherence scores are clamped to `[0.0, 1.0]` regardless of source
+- If both Claude and the Ollama fallback fail, the critic returns a neutral score of `0.5` so the pipeline continues using deterministic scoring dimensions alone
+
+### Data Scope Limits
+
+To prevent context overflow and scope creep:
+- Calendar queries are bounded to **31 days ahead**
+- Email body previews are capped at **3 lines / 280 characters**; HTML and URLs are stripped
+- Calendar, email, and tasks sources are each capped at **5 items**; news fetches up to **8 articles**
+- The ranking LLM receives at most ~**24 items total**
+
+### Human Intervention Boundaries
+
+The agent never modifies its own behavior autonomously. Human action is required at three boundaries:
+
+- **Memory writes** — episodic memory is only updated when the user explicitly submits feedback via the web UI after reviewing the digest. Automatic saving was considered and rejected: if a run is poor quality, saving it automatically would teach the agent the wrong lessons.
+- **Preference changes** — location, VIP contacts, highlight count, and digest preferences are only saved through the Settings UI or the post-digest feedback form on explicit user action.
+- **Shadow promotion** — the key highlights shadow agent never auto-promotes. Promotion requires two consecutive passing weekly quality reports; a human must observe the metrics trend before any behavioral change takes effect.
+
+### Scoped Autonomy Exception: VIP Task Creation
+
+The one autonomous write the agent performs is creating a Google Task when a VIP attendee on a calendar event also has a recent email thread — a reminder to follow up before the event. This is bounded by three constraints: it only triggers on the explicit VIP+email overlap condition, it is idempotent (a deterministic marker in the task notes prevents duplicates across runs), and it creates a reminder rather than taking action on the user's behalf.
+
+### Evaluation Metrics
+
+The following are tracked or observable:
+
+| Metric | Description | Gate |
+|---|---|---|
+| Fallback rate | % of runs where deterministic fallback replaced LLM candidates | — |
+| Schema validity rate | % of shadow agent outputs that are correctly formatted | ≥95% |
+| Promotion pass rate | % of shadow outputs good enough to replace the current approach | ≥70% |
+| Timeout rate | % of shadow calls exceeding the 2.5s timeout | ≤5% |
+| Pipeline completion rate | % of runs reaching the feedback node without a RuntimeError | — |
+| Episodic correction utilization | ChromaDB corrections retrieved per run (zero = retrieval not matching) | — |
+| User satisfaction rate | Ratio of satisfied to total feedback submissions | — |
+
+### Key Trade-offs
+
+- **Autonomy vs. reliability:** The agent halts rather than produces output under uncertain conditions. A failed run is preferable to a plausibly incorrect one.
+- **Efficiency vs. privacy:** Stripping personal data from critic inputs removes context that might improve coherence scoring. The privacy guarantee was prioritized — the boundary is structural and cannot be bypassed by model output.
+- **Automation vs. oversight:** Requiring explicit user feedback for episodic memory updates slows learning. A user who never submits feedback always gets default behavior. This trade-off was accepted because automatic learning from implicit signals would require behavioral tracking that raises its own privacy concerns.
+
 ## Maintenance
 
 Reset preferences if needed:
