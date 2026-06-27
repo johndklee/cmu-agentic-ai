@@ -213,7 +213,9 @@ Once the app is running at **http://localhost:8000**:
    - First run takes 1–2 minutes as the LLM processes all candidates
    - The digest appears on screen when complete
 
-4. **Submit feedback** — after reviewing the digest, use the feedback form at the bottom to rate it and add notes. Feedback is stored in episodic memory and improves future rankings.
+4. **Submit feedback** — after reviewing the digest, a feedback form appears at the bottom. Rate the digest with a thumbs up or down and optionally add notes. Feedback is stored in episodic memory and improves future rankings.
+
+   ![Digest Feedback](docs/images/digest_feedback.png)
 
 > **Last run persistence:** On first launch there is no cached digest — the main page will be blank until you generate one. After the first successful run, the digest is stored and displayed automatically on every subsequent load. You do not need to regenerate it each time.
 
