@@ -110,13 +110,17 @@ export function SettingsPage({ onBack, onPreferencesSaved }: Props) {
         />
       </label>
 
-      <label className="checkbox-label">
+      <label className="checkbox-label" title={!prefs.user_email?.trim() ? "Enter your email address above to enable this option" : ""}>
         <input
           type="checkbox"
           checked={prefs.email_daily_digest ?? false}
+          disabled={!prefs.user_email?.trim()}
           onChange={(e) => setPrefs({ ...prefs, email_daily_digest: e.target.checked })}
         />
         Send daily digest by email
+        {!prefs.user_email?.trim() && (
+          <span className="field-hint"> — enter your email above to enable</span>
+        )}
       </label>
 
       <div className="settings-save-row">
