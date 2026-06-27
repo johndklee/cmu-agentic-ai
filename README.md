@@ -153,7 +153,14 @@ Each framework has a distinct responsibility in the pipeline:
 | **Sentence Transformers** | Embedding model (`all-MiniLM-L6-v2`) that converts feedback text into vectors for storage and similarity search in ChromaDB |
 | **HuggingFace** | Model hub where the embedding model is downloaded from on first run. No account required — the model is public — but setting a `HF_TOKEN` avoids download rate limits that can slow or block the first startup |
 
-In short: LangGraph is the workflow engine, CrewAI defines the agents and their models, LangChain is the LLM interface layer, FastMCP shares state across agents, and ChromaDB + Sentence Transformers power the episodic memory that makes the digest improve over time.
+| **Ollama** | Local LLM server that hosts qwen3:8b on your machine. The Ranking Strategist sends prompts to Ollama via HTTP — no data leaves your machine for the local model |
+| **Prompt Redaction** | Before any text is sent to the LLM, `prompt_redaction.py` strips sensitive data (email addresses, personal names) from the prompt. This prevents accidental leakage of contact details to cloud APIs |
+| **Critic Tools** | The Ranking Critic doesn't rely purely on LLM judgment — `critic_tools.py` provides deterministic LangChain tool wrappers (e.g. schema validation, overlap scoring) that the Critic calls during candidate evaluation. This makes scoring more consistent and auditable |
+| **Digest Rendering** | `digest_rendering.py` is a deterministic fallback renderer. If the LLM returns malformed or unparseable output, the pipeline falls back to this to produce a valid digest from raw observations rather than failing |
+| **Shadow Mode** | `key_highlights_agent.py` runs a silent parallel Agent B alongside the main pipeline to generate and validate an alternative key highlights output. Results are logged to `.memory/key_highlights_shadow.jsonl` for quality tracking but never shown to the user — used to evaluate whether Agent B is ready to replace the current approach |
+| **Galileo** | Optional LLM observability platform. When enabled (`GALILEO_OBSERVABILITY_ENABLED=1`), emits trace events (latency, token counts, node timings) for every LLM call to a Galileo dashboard — useful for debugging and tuning the pipeline |
+
+In short: LangGraph is the workflow engine, CrewAI defines the agents and their models, LangChain is the LLM interface layer, FastMCP shares ToT branch state, ChromaDB + Sentence Transformers power episodic memory, Ollama keeps the Strategist local, and Galileo provides optional observability into every LLM call.
 
 ## Module Layout
 
