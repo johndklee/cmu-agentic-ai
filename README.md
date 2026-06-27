@@ -41,6 +41,8 @@ After installing Ollama, pull the recommended model (≈5GB download):
 ollama pull qwen3:8b
 ```
 
+> **Why qwen3:8b?** It has a 128K context window — large enough to hold a full day's worth of emails, calendar events, and tasks in a single prompt. Most other 8B models top out at 8K–32K, which causes truncation on busy days. It also benchmarks well on instruction-following tasks, which matters for the Tree-of-Thought ranking steps.
+
 > **Note:** News (Google News RSS) and weather (open-meteo) are free public APIs — no keys required.
 
 ## Quickstart
