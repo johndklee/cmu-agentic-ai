@@ -79,7 +79,7 @@ Once the app is running at **http://localhost:8000**:
 
 1. **Check diagnostics** — the Diagnostics panel loads automatically. Confirm all sections show green before proceeding. Fix any red items (missing credentials, Ollama not reachable, etc.)
 
-2. **Set your preferences** — click **Settings** in the top nav:
+2. **Set your preferences** — expand the **Current Preferences** panel and click **Settings**:
    - Enter your name and email address
    - Set your location (used for weather)
    - Add VIP email addresses (people whose emails get priority in ranking)
