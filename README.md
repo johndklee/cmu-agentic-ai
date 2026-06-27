@@ -1,6 +1,46 @@
 # cmu-agentic-ai
 
-Daily Digest agent that gathers data from Google services, weather, and news, then synthesizes a prioritized briefing.
+Daily Digest agent that gathers data from Google services, weather, and news, then synthesizes a prioritized briefing using a Tree-of-Thought ranking pipeline with local and cloud LLMs.
+
+## Prerequisites
+
+Install these before cloning:
+
+| Tool | Version | Install |
+|---|---|---|
+| Python | 3.12 | [python.org](https://www.python.org/downloads/) or `brew install python@3.12` |
+| Node.js | 18+ | [nodejs.org](https://nodejs.org/) or `brew install node` |
+| Ollama | latest | [ollama.com](https://ollama.com/) or `brew install ollama` |
+
+After installing Ollama, pull the recommended model:
+
+```bash
+ollama pull qwen3:8b
+```
+
+## Quickstart
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/johndklee/cmu-agentic-ai.git
+cd cmu-agentic-ai
+
+# 2. Install Python dependencies
+bash scripts/setup_claude_code.sh
+
+# 3. Install Node dependencies
+cd web && npm install && cd ..
+
+# 4. Create .env (see Environment Variables section below)
+cp .env.example .env   # then fill in your keys
+
+# 5. Set up Google credentials (see Google Services Setup section below)
+
+# 6. Run
+./run.sh
+```
+
+The app runs at **http://localhost:8000**. At startup it shows a diagnostics panel confirming all services are connected.
 
 ## Run
 
@@ -8,39 +48,13 @@ Daily Digest agent that gathers data from Google services, weather, and news, th
 ./run.sh
 ```
 
-Or start the backend and frontend separately:
+This starts Ollama (if not already running), builds the frontend, and launches the FastAPI backend on port 8000.
+
+Or start backend and frontend separately in dev mode:
 
 ```bash
-.venv312/bin/uvicorn server:app --reload
-cd web && npm run dev
-```
-
-At startup, the app shows a diagnostics panel with strategist/critic model settings and episodic memory backend status.
-
-## Setup
-
-Bootstrap dependencies:
-
-```bash
-bash scripts/setup_claude_code.sh
-```
-
-Optional (CrewAI integration):
-
-```bash
-bash scripts/setup_claude_code.sh --with-crewai
-```
-
-Then run:
-
-```bash
-.venv312/bin/python main.py
-```
-
-And test:
-
-```bash
-.venv312/bin/python -m unittest discover -s tests -p "test_*.py"
+.venv312/bin/uvicorn server:app --reload   # backend on :8000
+cd web && npm run dev                       # frontend on :5173
 ```
 
 ## Maintenance
@@ -49,6 +63,12 @@ Reset preferences if needed:
 
 ```bash
 .venv312/bin/python main.py --reset-preferences digest
+```
+
+## Tests
+
+```bash
+.venv312/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
 ## Module Layout
@@ -68,47 +88,23 @@ Reset preferences if needed:
 
 ## Environment Variables
 
-Create a `.env` file in the project root before running the app. This file is in `.gitignore` and will never be committed.
+Copy `.env.example` to `.env` and fill in your keys. This file is in `.gitignore` and will never be committed.
 
 ```bash
-# ── Required ────────────────────────────────────────────────────────────────
-
-# Anthropic API key — used by the Ranking Critic agent (Claude)
-# Get yours at https://console.anthropic.com
-ANTHROPIC_API_KEY=sk-ant-...
-
-# ── LLM (Ollama) ────────────────────────────────────────────────────────────
-
-# Ollama model for the Ranking Strategist (runs locally)
-# Default: llama3.1:8b  Recommended: qwen3:8b (128K context)
-# Pull with: ollama pull qwen3:8b
-OLLAMA_MODEL=qwen3:8b
-
-# Ollama server URL (default shown — change if running on a different host)
-# OLLAMA_BASE_URL=http://localhost:11434
-
-# Optional context window override (Ollama uses model default if not set)
-# OLLAMA_NUM_CTX=32768
-
-# ── HuggingFace ─────────────────────────────────────────────────────────────
-
-# HuggingFace token — optional, lifts download rate limits for embedding model
-# The model (sentence-transformers/all-MiniLM-L6-v2) is public; token not required after first download
-# Get yours at https://huggingface.co/settings/tokens (Read access)
-# HF_TOKEN=hf_...
-
-# ── Galileo Observability (optional) ────────────────────────────────────────
-
-# Enable Galileo observability to emit LLM trace events
-# GALILEO_OBSERVABILITY_ENABLED=1
-
-# Galileo API key and console URL — required when observability is enabled
-# GALILEO_API_KEY=...
-# GALILEO_CONSOLE_URL=https://app.galileo.ai/...
-
-# Include raw prompt/response content in Galileo events (default: metadata only)
-# GALILEO_INCLUDE_CONTENT=1
+cp .env.example .env
 ```
+
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | **Yes** | Claude API key for the Ranking Critic — get at [console.anthropic.com](https://console.anthropic.com) |
+| `OLLAMA_MODEL` | **Yes** | Local model for the Ranking Strategist — e.g. `qwen3:8b` |
+| `OLLAMA_BASE_URL` | No | Ollama server URL (default: `http://localhost:11434`) |
+| `OLLAMA_NUM_CTX` | No | Context window override (uses model default if not set) |
+| `HF_TOKEN` | No | HuggingFace token for higher download rate limits — get at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
+| `GALILEO_OBSERVABILITY_ENABLED` | No | Set to `1` to emit LLM trace events to Galileo |
+| `GALILEO_API_KEY` | No | Required when Galileo observability is enabled |
+| `GALILEO_CONSOLE_URL` | No | Your Galileo project URL |
+| `GALILEO_INCLUDE_CONTENT` | No | Set to `1` to include raw prompt/response in Galileo events |
 
 ## Google Services Setup
 
@@ -141,17 +137,10 @@ Both `credentials.json` and `token_google.json` are in `.gitignore` and will nev
 
 ## Notes
 
-- Local sensitive files are intentionally ignored via `.gitignore` (for example `.env`, credentials/token files, `.memory/`, and local preference state).
+- Local sensitive files are intentionally ignored via `.gitignore` (`.env`, credentials/token files, `.memory/`, and local preference state).
 - Episodic retrieval is recency-aware with stale-signal handling for older corrections.
 - Episodic retrieval and writes are vector-only; vector backend unavailable is a hard error.
-
-## Tests
-
-Run lightweight unit tests for retrieval heuristics and memory indexing:
-
-```bash
-.venv312/bin/python -m unittest discover -s tests -p "test_*.py"
-```
+- `run.sh` requires macOS or Linux (zsh).
 
 ## Shadow Metrics Ops
 
