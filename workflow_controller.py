@@ -59,9 +59,21 @@ def retrieval_node(state: WorkflowState) -> WorkflowState:
     for email in emails[:3]:
         if isinstance(email, dict):
             query_parts.append(str(email.get("subject") or ""))
+    from datetime import datetime, timezone as _tz
+    has_overdue = False
     for task in tasks[:3]:
         if isinstance(task, dict):
             query_parts.append(str(task.get("title") or ""))
+            due = task.get("due")
+            if due:
+                try:
+                    due_dt = datetime.fromisoformat(due.replace("Z", "+00:00"))
+                    if due_dt < datetime.now(_tz.utc):
+                        has_overdue = True
+                except Exception:
+                    pass
+    if has_overdue:
+        query_parts.append("overdue task high priority past due date")
 
     query = " | ".join(part for part in query_parts if part).strip()
     store = EpisodicMemoryStore()
