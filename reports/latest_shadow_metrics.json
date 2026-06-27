@@ -1,0 +1,21 @@
+{
+  "log_path": "ci/key_highlights_shadow.jsonl",
+  "tail": 50,
+  "thresholds": {
+    "min_records": 1,
+    "min_valid_rate": 0.95,
+    "max_timeout_rate": 0.05,
+    "min_promotion_pass_rate": 0.7
+  },
+  "stats": {
+    "total": 10,
+    "valid_rate": 1.0,
+    "timeout_rate": 0.0,
+    "avg_overlap": 1.0,
+    "avg_ordering_changes": 0.0,
+    "avg_highlights_count": 5.0,
+    "promotion_pass_rate": 1.0
+  },
+  "gate_failures": [],
+  "gates_passed": true
+}

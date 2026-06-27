@@ -380,6 +380,22 @@ In short: LangGraph is the workflow engine, CrewAI defines the agents and their 
 	- `google_services.py`: shared Google OAuth/service client bootstrap and error formatting.
 - `preferences.py`: local preference persistence and summarization logic.
 
+## Evaluation Artifacts
+
+The following artifacts are committed to the repository for reviewers who cannot run the project locally:
+
+| Artifact | Location | Description |
+|---|---|---|
+| Shadow metrics snapshot | `ci/key_highlights_shadow.jsonl` | Last 50 shadow agent runs used by the CI quality gate |
+| Shadow metrics report | `reports/latest_shadow_metrics.json` | Summarized quality gate results from the snapshot |
+
+Current shadow metrics (as of last commit):
+- **Schema validity rate:** 100% (gate: ≥95%)
+- **Timeout rate:** 0% (gate: ≤5%)
+- **Promotion pass rate:** 100% (gate: ≥70%)
+- **Average overlap with deterministic output:** 100%
+- **All gates:** PASS
+
 ## Notes
 
 - Local sensitive files are intentionally ignored via `.gitignore` (`.env`, credentials/token files, `.memory/`, and local preference state).
