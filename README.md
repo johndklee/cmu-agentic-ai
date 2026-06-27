@@ -219,6 +219,14 @@ Once the app is running at **http://localhost:8000**:
 
    ![Digest Feedback Detail](docs/images/digest_feedback_detail.png)
 
+   The more specific the feedback, the better — the episodic memory matches on keywords from the current run context. For example, to teach the agent to prioritize weather on bad weather days:
+
+   > *"When weather conditions require an umbrella (rain) or a thicker coat (cold below 50°F / 10°C), weather should be ranked as high priority, not medium or low."*
+
+   ![Digest Feedback Example](docs/images/digest_feedback_example.png)
+
+   Vague notes like "improve weather" are less effective — specific condition + priority instructions retrieve reliably on future runs.
+
 > **Last run persistence:** On first launch there is no cached digest — the main page will be blank until you generate one. After the first successful run, the digest is stored and displayed automatically on every subsequent load. You do not need to regenerate it each time.
 
 ## Safety & Design Decisions
