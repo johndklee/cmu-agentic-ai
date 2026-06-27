@@ -211,6 +211,8 @@ Once the app is running at **http://localhost:8000**:
 
 4. **Submit feedback** — after reviewing the digest, use the feedback form at the bottom to rate it and add notes. Feedback is stored in episodic memory and improves future rankings.
 
+> **Last run persistence:** The most recent successful digest is stored and displayed automatically whenever the UI loads. After your first run, reopening the app shows the previous digest immediately — you do not need to regenerate it each time.
+
 ## Safety & Design Decisions
 
 ### Privacy Boundary (Structural)
