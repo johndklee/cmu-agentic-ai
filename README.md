@@ -2,6 +2,18 @@
 
 Daily Digest agent that gathers data from Google services, weather, and news, then synthesizes a prioritized briefing using a Tree-of-Thought ranking pipeline with local and cloud LLMs.
 
+## System Requirements
+
+| | Minimum | Recommended |
+|---|---|---|
+| **OS** | macOS 12+ or Linux | macOS (Apple Silicon M1+) |
+| **RAM** | 8 GB | 16 GB |
+| **Disk** | 6 GB free | 10 GB free |
+| **CPU** | Any modern x86-64 or ARM | Apple Silicon (M1+) — Ollama uses the GPU, making inference 3–5× faster |
+| **Internet** | Required | — |
+
+> **RAM note:** The local LLM (`qwen3:8b`) alone occupies ~5GB of RAM. On an 8GB machine the OS may swap under load; 16GB gives comfortable headroom.
+
 ## Prerequisites
 
 Install these before cloning:
