@@ -319,6 +319,8 @@ Reset preferences if needed:
 
 The shadow mode agent (Agent B) runs silently alongside every digest run and logs its output to `.memory/key_highlights_shadow.jsonl`. These commands exist to monitor whether Agent B is performing well enough to replace the current deterministic key highlights approach. Before any PR that changes shadow behavior, the CI snapshot must be refreshed locally — otherwise the CI gate will fail.
 
+The full two-agent contract — including input/output schemas, validation rules, rollout phases, CI gate runbook, and threshold raise policy — is documented in [`docs/two-agent-contract.md`](docs/two-agent-contract.md). The system is currently in **Phase 1** (shadow mode): Agent B runs on every digest but its output is never shown to the user until promotion gates pass.
+
 Prepare the CI contract log snapshot:
 
 ```bash
