@@ -8,15 +8,27 @@ Install these before cloning:
 
 | Tool | Version | Install |
 |---|---|---|
-| Python | 3.12 | [python.org](https://www.python.org/downloads/) or `brew install python@3.12` |
-| Node.js | 18+ | [nodejs.org](https://nodejs.org/) or `brew install node` |
-| Ollama | latest | [ollama.com](https://ollama.com/) or `brew install ollama` |
+| **Python** | **3.12 exactly** | [python.org](https://www.python.org/downloads/) or `brew install python@3.12` |
+| **Node.js** | 18+ | [nodejs.org](https://nodejs.org/) or `brew install node` |
+| **Ollama** | latest | [ollama.com](https://ollama.com/) — install the Mac app or `brew install ollama` |
 
-After installing Ollama, pull the recommended model:
+> **Python 3.12 is required.** The setup script calls `python3.12` explicitly to create the virtual environment. Other versions will fail.
+
+Verify your versions before proceeding:
+
+```bash
+python3.12 --version   # must print Python 3.12.x
+node --version         # must print v18 or higher
+ollama --version       # any version
+```
+
+After installing Ollama, pull the recommended model (≈5GB download):
 
 ```bash
 ollama pull qwen3:8b
 ```
+
+> **Note:** News (Google News RSS) and weather (open-meteo) are free public APIs — no keys required.
 
 ## Quickstart
 
@@ -25,7 +37,7 @@ ollama pull qwen3:8b
 git clone https://github.com/johndklee/cmu-agentic-ai.git
 cd cmu-agentic-ai
 
-# 2. Install Python dependencies
+# 2. Install Python dependencies (creates .venv312/)
 bash scripts/setup_claude_code.sh
 
 # 3. Install Node dependencies
@@ -41,6 +53,8 @@ cp .env.example .env   # then fill in your keys
 ```
 
 The app runs at **http://localhost:8000**. At startup it shows a diagnostics panel confirming all services are connected.
+
+> **macOS/Linux only.** `run.sh` requires zsh. On Windows, start Ollama manually and run the backend and frontend separately (see Run section below).
 
 ## Run
 
