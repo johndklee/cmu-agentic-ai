@@ -245,6 +245,10 @@ All outputs from the Ollama strategist are validated before use:
 - Coherence scores are clamped to `[0.0, 1.0]` regardless of source
 - If both Claude and the Ollama fallback fail, the critic returns a neutral score of `0.5` so the pipeline continues using deterministic scoring dimensions alone
 
+When the Anthropic API is unavailable, the terminal logs the fallback clearly and the pipeline continues uninterrupted using Ollama as the critic:
+
+![Anthropic Failover to Ollama](docs/images/anthropic_failover.png)
+
 ### Data Scope Limits
 
 To prevent context overflow and scope creep:
