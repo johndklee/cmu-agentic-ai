@@ -11,6 +11,8 @@ Two different LLMs are used deliberately — each matched to its role:
 - **Ranking Strategist → Ollama/qwen3:8b (local):** Generation is the high-volume work — 5 candidates at L1, 4 refinements at L2. Running this locally keeps it free, fast, and private. Your emails and calendar data never leave your machine during generation.
 - **Ranking Critic → Claude (cloud):** Scoring and selection require stronger reasoning and coherence judgment. Claude is used here precisely because it outperforms smaller local models at nuanced evaluation tasks. Since the Critic only receives sanitized item IDs, sources, and priority scores — not raw personal content — the privacy risk is minimal.
 
+This **local-for-generation, cloud-for-evaluation** pattern is directly applicable to real enterprise environments where sensitive internal data (emails, documents, customer records) cannot be sent to public cloud LLM APIs due to compliance, data residency, or confidentiality requirements. The local model handles the data-heavy work; the cloud model only sees abstracted, sanitized signals.
+
 > **A note on scope:** This project is deliberately over-engineered. A working daily digest could be built with a single LLM call. The goal here was to learn by doing — exploring LangGraph, CrewAI, FastMCP, episodic memory, shadow mode agent evaluation, and two-level Tree-of-Thought search all in one project. If something seems more complex than it needs to be, that's intentional.
 
 ## System Requirements
