@@ -1,0 +1,62 @@
+name: Shadow Metrics Gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      log_path:
+        description: "Path to JSONL shadow metrics log"
+        required: false
+        default: "ci/key_highlights_shadow.jsonl"
+      tail:
+        description: "Only evaluate the last N records (0 = all)"
+        required: false
+        default: "50"
+
+jobs:
+  shadow-metrics-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve gate inputs
+        id: inputs
+        shell: bash
+        run: |
+          LOG_PATH="${{ github.event.inputs.log_path }}"
+          TAIL="${{ github.event.inputs.tail }}"
+
+          if [[ -z "$LOG_PATH" ]]; then
+            LOG_PATH="ci/key_highlights_shadow.jsonl"
+          fi
+          if [[ -z "$TAIL" ]]; then
+            TAIL="50"
+          fi
+
+          echo "log_path=$LOG_PATH" >> "$GITHUB_OUTPUT"
+          echo "tail=$TAIL" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare CI shadow metrics log
+        run: |
+          python scripts/prepare_ci_shadow_log.py \
+            --source .memory/key_highlights_shadow.jsonl \
+            --output "${{ steps.inputs.outputs.log_path }}" \
+            --tail "${{ steps.inputs.outputs.tail }}"
+
+      - name: Enforce shadow metric quality gates
+        run: |
+          python scripts/summarize_shadow_metrics.py \
+            --log-path "${{ steps.inputs.outputs.log_path }}" \
+            --tail "${{ steps.inputs.outputs.tail }}" \
+            --min-records 10 \
+            --min-valid-rate 0.95 \
+            --max-timeout-rate 0.05 \
+            --min-promotion-pass-rate 0.70 \
+            --github-annotations \
+            --enforce-gates

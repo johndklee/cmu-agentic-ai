@@ -1,0 +1,65 @@
+name: Weekly Shadow Metrics Report
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+jobs:
+  weekly-shadow-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare CI shadow metrics log
+        run: |
+          python scripts/prepare_ci_shadow_log.py \
+            --source .memory/key_highlights_shadow.jsonl \
+            --output ci/key_highlights_shadow.jsonl \
+            --tail 500
+
+      - name: Build weekly metrics reports
+        run: |
+          mkdir -p reports
+          REPORT_DATE="$(date -u +%Y-%m-%d)"
+          REPORT_JSON="reports/shadow_metrics_${REPORT_DATE}.json"
+          REPORT_MD="reports/shadow_metrics_${REPORT_DATE}.md"
+
+          python scripts/summarize_shadow_metrics.py \
+            --log-path ci/key_highlights_shadow.jsonl \
+            --tail 500 \
+            --min-records 10 \
+            --min-valid-rate 0.95 \
+            --max-timeout-rate 0.05 \
+            --min-promotion-pass-rate 0.70 \
+            --output-json "$REPORT_JSON" | tee reports/shadow_metrics_${REPORT_DATE}.txt
+
+          {
+            echo "# Weekly Shadow Metrics Report ($REPORT_DATE)"
+            echo
+            echo "- Log Path: ci/key_highlights_shadow.jsonl"
+            echo "- Window: last 500 records"
+            echo
+            echo "## Raw Summary"
+            echo
+            echo '```text'
+            cat reports/shadow_metrics_${REPORT_DATE}.txt
+            echo '```'
+            echo
+            echo "## JSON Report"
+            echo
+            echo "Saved to: $REPORT_JSON"
+          } > "$REPORT_MD"
+
+      - name: Upload weekly report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-shadow-metrics-report
+          path: reports/
+          if-no-files-found: error
