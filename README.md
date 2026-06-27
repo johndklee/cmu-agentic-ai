@@ -108,6 +108,20 @@ cp .env.example .env
 | `GALILEO_CONSOLE_URL` | No | Your Galileo project URL |
 | `GALILEO_INCLUDE_CONTENT` | No | Set to `1` to include raw prompt/response in Galileo events |
 
+## LLM Configuration
+
+The two agents use different models — this section explains how to configure them and what each env var controls at runtime.
+
+Runtime model configuration is per-agent:
+
+- Strategist uses Ollama (`OLLAMA_MODEL`, default `llama3.1:8b`)
+- Critic uses Claude (`ANTHROPIC_MODEL`, default `claude-opus-4-6`)
+- `OLLAMA_BASE_URL` and `OLLAMA_NUM_CTX` tune Ollama runtime behavior
+- Optional Galileo observability:
+	- `GALILEO_OBSERVABILITY_ENABLED=1` enables event emission (no-op when Galileo SDK is not installed)
+	- `GALILEO_INCLUDE_CONTENT=1` includes raw prompt/response content in events
+	- Default behavior is metadata-only (`prompt_chars`, `response_chars`, hashes, latency, status)
+
 ## Google Services Setup
 
 The agent reads Gmail, Google Calendar, and Google Tasks via OAuth 2.0. Tasks also requires **write** access — the agent automatically creates follow-up tasks when a VIP attendee on a calendar event has a recent email thread. Setup is one-time and must be completed before the first run.
@@ -254,6 +268,28 @@ Reset preferences if needed:
 .venv312/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
+## Shadow Metrics Ops
+
+The shadow mode agent (Agent B) runs silently alongside every digest run and logs its output to `.memory/key_highlights_shadow.jsonl`. These commands exist to monitor whether Agent B is performing well enough to replace the current deterministic key highlights approach. Before any PR that changes shadow behavior, the CI snapshot must be refreshed locally — otherwise the CI gate will fail.
+
+Prepare the CI contract log snapshot:
+
+```bash
+.venv312/bin/python scripts/prepare_ci_shadow_log.py --source .memory/key_highlights_shadow.jsonl --output ci/key_highlights_shadow.jsonl --tail 50
+```
+
+Summarize shadow metrics and write a JSON report:
+
+```bash
+.venv312/bin/python scripts/summarize_shadow_metrics.py --log-path ci/key_highlights_shadow.jsonl --tail 50 --output-json reports/latest_shadow_metrics.json
+```
+
+Enforce quality gates locally (non-zero exit on failure):
+
+```bash
+.venv312/bin/python scripts/summarize_shadow_metrics.py --log-path ci/key_highlights_shadow.jsonl --tail 50 --min-records 10 --min-valid-rate 0.95 --max-timeout-rate 0.05 --min-promotion-pass-rate 0.70 --enforce-gates
+```
+
 ## Architecture Overview
 
 The app has two processes that run together:
@@ -308,34 +344,3 @@ In short: LangGraph is the workflow engine, CrewAI defines the agents and their 
 - Episodic retrieval and writes are vector-only; vector backend unavailable is a hard error.
 - `run.sh` requires macOS or Linux (zsh).
 
-## Shadow Metrics Ops
-
-Prepare the CI contract log snapshot:
-
-```bash
-.venv312/bin/python scripts/prepare_ci_shadow_log.py --source .memory/key_highlights_shadow.jsonl --output ci/key_highlights_shadow.jsonl --tail 50
-```
-
-Summarize shadow metrics and write a JSON report:
-
-```bash
-.venv312/bin/python scripts/summarize_shadow_metrics.py --log-path ci/key_highlights_shadow.jsonl --tail 50 --output-json reports/latest_shadow_metrics.json
-```
-
-Enforce quality gates locally (non-zero exit on failure):
-
-```bash
-.venv312/bin/python scripts/summarize_shadow_metrics.py --log-path ci/key_highlights_shadow.jsonl --tail 50 --min-records 10 --min-valid-rate 0.95 --max-timeout-rate 0.05 --min-promotion-pass-rate 0.70 --enforce-gates
-```
-
-## LLM Configuration
-
-Runtime model configuration is per-agent:
-
-- Strategist uses Ollama (`OLLAMA_MODEL`, default `llama3.1:8b`)
-- Critic uses Claude (`ANTHROPIC_MODEL`, default `claude-opus-4-6`)
-- `OLLAMA_BASE_URL` and `OLLAMA_NUM_CTX` tune Ollama runtime behavior
-- Optional Galileo observability:
-	- `GALILEO_OBSERVABILITY_ENABLED=1` enables event emission (no-op when Galileo SDK is not installed)
-	- `GALILEO_INCLUDE_CONTENT=1` includes raw prompt/response content in events
-	- Default behavior is metadata-only (`prompt_chars`, `response_chars`, hashes, latency, status)
