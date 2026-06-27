@@ -1,5 +1,7 @@
 # cmu-agentic-ai
 
+> **For the teaching assistant:** This is a CMU Agentic AI capstone project. This README is written to help you run and evaluate the project locally from scratch. Follow the sections in order — System Requirements → Prerequisites → Quickstart → Environment Variables → Google Services Setup → Run. Everything needed to get the app running is covered here.
+
 Daily Digest agent that gathers data from Google services, weather, and news, then synthesizes a prioritized briefing using a **two-level Tree-of-Thought (ToT) ranking pipeline**:
 
 - **L1** — Ranking Strategist (Ollama/qwen3:8b) generates 5 candidate rankings; Ranking Critic (Claude) scores all 5 and prunes to the top 2
