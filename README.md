@@ -244,8 +244,6 @@ Once the app is running at **http://localhost:8000**:
 
    ![Digest Feedback Example](docs/images/digest_feedback_example.png)
 
-   Vague notes like "improve weather" are less effective — specific condition + priority instructions retrieve reliably on future runs.
-
 > **Last run persistence:** On first launch there is no cached digest — the main page will be blank until you generate one. After the first successful run, the digest is stored and displayed automatically on every subsequent load. You do not need to regenerate it each time.
 
 ## Safety & Design Decisions
