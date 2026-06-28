@@ -384,6 +384,15 @@ Reset preferences if needed:
 
 ## Shadow Metrics Ops
 
+**Agent A vs. Agent B — what's being compared:**
+
+- **Agent A** is the full main pipeline — LangGraph workflow, Strategist + Critic, two-level Tree-of-Thought ranking. It produces the key highlights the user actually sees.
+- **Agent B** is a simpler, focused agent defined in `key_highlights_agent.py`. It receives the already-fetched digest data and produces an alternative highlights list using a single-pass LLM call rather than the full ToT search.
+
+The architectural question shadow mode is designed to answer over time: *does the complexity of L1→prune→L2→select actually produce meaningfully better key highlights than a simpler single-pass approach?* If Agent B consistently matches Agent A's output with high overlap and passes all quality gates, it suggests the ToT pipeline's complexity may not be adding value for highlights specifically — and Agent B could replace that step with significantly lower latency. If Agent B diverges or misses important items, Agent A's approach is validated.
+
+Tweaks are made to Agent B only — Agent A continues unchanged. The comparison is always Agent B vs. the current Agent A output on the same run.
+
 The shadow mode agent (Agent B) runs silently alongside every digest run and logs its output to `.memory/key_highlights_shadow.jsonl`. These commands exist to monitor whether Agent B is performing well enough to replace the current deterministic key highlights approach. Before any PR that changes shadow behavior, the CI snapshot must be refreshed locally — otherwise the CI gate will fail.
 
 The full two-agent contract — including input/output schemas, validation rules, rollout phases, CI gate runbook, and threshold raise policy — is documented in [`docs/two-agent-contract.md`](docs/two-agent-contract.md). The system is currently in **Phase 1** (shadow mode): Agent B runs on every digest but its output is never shown to the user until promotion gates pass.
