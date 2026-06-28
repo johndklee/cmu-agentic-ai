@@ -123,6 +123,7 @@ cp .env.example .env
 | `OLLAMA_MODEL` | **Yes** | Local model for the Ranking Strategist — e.g. `qwen3:8b` |
 | `OLLAMA_BASE_URL` | No | Ollama server URL (default: `http://localhost:11434`) |
 | `OLLAMA_NUM_CTX` | No | Context window override (uses model default if not set) |
+| `OLLAMA_REQUEST_TIMEOUT_SECONDS` | No | Ollama request timeout in seconds (default: `300`). Increase on slower machines to avoid L2 refinement timeouts. |
 | `HF_TOKEN` | No | HuggingFace token for higher download rate limits — get at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
 | `GALILEO_OBSERVABILITY_ENABLED` | No | Set to `1` to emit LLM trace events to Galileo |
 | `GALILEO_API_KEY` | No | Required when Galileo observability is enabled |

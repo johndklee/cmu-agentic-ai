@@ -80,7 +80,7 @@ Each agent has its own model — configuration is per-agent, not global:
 - Critic uses Claude (`ANTHROPIC_MODEL`, default `claude-opus-4-6`)
 - `OLLAMA_BASE_URL`: Ollama endpoint (default `http://localhost:11434`)
 - `OLLAMA_NUM_CTX`: optional context window override
-- `OLLAMA_REQUEST_TIMEOUT_SECONDS`: request timeout (default 120)
+- `OLLAMA_REQUEST_TIMEOUT_SECONDS`: request timeout (default 300)
 - `GALILEO_OBSERVABILITY_ENABLED`: set to `1` to emit observability events (best-effort no-op if SDK is missing)
 - `GALILEO_INCLUDE_CONTENT`: set to `1` to include raw prompt/response in events; default is metadata-only
 
