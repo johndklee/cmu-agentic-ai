@@ -244,6 +244,40 @@ def _check_fastmcp() -> dict:
     return {"available": False, "version": None, "detail": "not installed"}
 
 
+def _check_shadow() -> dict:
+    """Return shadow mode status and latest metrics from log and reports."""
+    import json as _json
+    shadow_log = Path(__file__).parent / ".memory" / "key_highlights_shadow.jsonl"
+    metrics_file = Path(__file__).parent / "reports" / "latest_shadow_metrics.json"
+
+    run_count = 0
+    if shadow_log.exists():
+        try:
+            run_count = sum(1 for line in shadow_log.read_text().splitlines() if line.strip())
+        except Exception:
+            pass
+
+    metrics = None
+    if metrics_file.exists():
+        try:
+            metrics = _json.loads(metrics_file.read_text())
+        except Exception:
+            pass
+
+    stats = (metrics or {}).get("stats", {})
+    gates_passed = (metrics or {}).get("gates_passed", None)
+    return {
+        "enabled": True,
+        "run_count": run_count,
+        "gates_passed": gates_passed,
+        "valid_rate": stats.get("valid_rate"),
+        "timeout_rate": stats.get("timeout_rate"),
+        "promotion_pass_rate": stats.get("promotion_pass_rate"),
+        "avg_overlap": stats.get("avg_overlap"),
+        "metrics_total": stats.get("total", 0),
+    }
+
+
 def _check_weather() -> dict:
     """Probe the open-meteo geocoding endpoint used by weather_action."""
     import urllib.request as _ur
@@ -379,7 +413,7 @@ def health():
     return {
         "ollama": {"reachable": ollama_reachable, "detail": ollama_detail, "url": ollama_base_url},
         "ollama_model": _check_ollama_model(ollama_base_url),
-        "anthropic": {"reachable": anthropic_reachable, "detail": anthropic_detail, "context_window": _ANTHROPIC_CONTEXT_WINDOWS.get(critic_model, "200K")},
+        "anthropic": {"reachable": anthropic_reachable, "detail": anthropic_detail, "model": critic_model, "context_window": _ANTHROPIC_CONTEXT_WINDOWS.get(critic_model, "200K")},
         "google": google_status,
         "memory": memory_status,
         "huggingface": _check_huggingface(),
@@ -391,6 +425,7 @@ def health():
         "mcp": _check_mcp(),
         "weather": _check_weather(),
         "news": _check_news(),
+        "shadow": _check_shadow(),
     }
 
 

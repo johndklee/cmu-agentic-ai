@@ -156,12 +156,12 @@ def feedback_node(state: WorkflowState) -> WorkflowState:
     _require(isinstance(digest_output, (dict, str)) and bool(digest_output),
              "feedback", "digest_output is empty — synthesize_node must produce output before feedback")
 
-    # Run shadow Agent B comparison in background — never blocks or fails the main pipeline
+    # Run shadow Agent B comparison — never blocks or fails the main pipeline
     try:
         import uuid as _uuid
         from key_highlights_agent import run_key_highlights_shadow, log_shadow_comparison
-        from digest_rendering import build_digest_payload
-        payload = build_digest_payload(state.get("raw_fetched_data") or {})
+        # digest_output already has the rendered sections as strings — pass it directly
+        payload = digest_output if isinstance(digest_output, dict) else {}
         run_id = _uuid.uuid4().hex[:8]
         result = run_key_highlights_shadow(payload)
         log_shadow_comparison(payload, result, run_id)

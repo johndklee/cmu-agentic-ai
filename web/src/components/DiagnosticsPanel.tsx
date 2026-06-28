@@ -100,25 +100,35 @@ export function DiagnosticsPanel({ refresh = 0 }: Props) {
               status={health.ollama.reachable ? "ok" : "err"}
               detail={health.ollama.detail}
             />
-            <Row
-              label="Ollama Model"
-              status={health.ollama_model.available ? "ok" : "err"}
-              detail={(() => {
-                const parts = [health.ollama_model.detail];
-                if (health.ollama_model.available && health.ollama_model.context_window)
-                  parts.push(`${health.ollama_model.context_window} context`);
-                if (health.ollama_model.available && health.ollama_model.think_disabled)
-                  parts.push("no_think");
-                return parts.join(" · ");
-              })()}
-            />
+            <tr className="diag-agent-row">
+              <td className="diag-label diag-agent-label">↳ Model</td>
+              <td className={`diag-icon ${health.ollama_model.available ? "diag-ok" : "diag-err"}`}>●</td>
+              <td className="diag-detail">
+                <span>{health.ollama_model.detail}</span>
+                <span className="diag-agent-purpose">
+                  {health.ollama_model.available && health.ollama_model.context_window && ` · ${health.ollama_model.context_window} context`}
+                  {health.ollama_model.available && health.ollama_model.think_disabled && " · no_think"}
+                  {health.ollama_model.available && " · Ranking Strategist"}
+                </span>
+              </td>
+            </tr>
             <Row
               label="Anthropic (optional)"
               status={health.anthropic.reachable ? "ok" : "warn"}
-              detail={health.anthropic.reachable
-                ? `${health.anthropic.detail} · ${health.anthropic.context_window ?? "200K"} context`
-                : `${health.anthropic.detail} — critic will use Ollama`}
+              detail={health.anthropic.reachable ? health.anthropic.detail : `${health.anthropic.detail} — critic will use Ollama`}
             />
+            <tr className="diag-agent-row">
+              <td className="diag-label diag-agent-label">↳ Model</td>
+              <td className={`diag-icon ${health.anthropic.reachable ? "diag-ok" : "diag-warn"}`}>●</td>
+              <td className="diag-detail">
+                <span>{health.anthropic.model}</span>
+                <span className="diag-agent-purpose">
+                  {health.anthropic.reachable
+                    ? ` · ${health.anthropic.context_window ?? "200K"} context · Ranking Critic`
+                    : " — not active"}
+                </span>
+              </td>
+            </tr>
 
             <SectionHeader
               title="Frameworks"
@@ -129,33 +139,30 @@ export function DiagnosticsPanel({ refresh = 0 }: Props) {
               }
             />
             <Row
-              label="Vector Memory"
+              label="Episodic Memory"
               status={health.memory["vector_enabled"] ? "ok" : "err"}
-              detail={health.memory["vector_enabled"] ? "enabled" : String(health.memory["backend_error"] || "unavailable")}
-            />
-            <Row
-              label="Embedding Model"
-              status={health.memory["vector_enabled"] ? "ok" : "warn"}
-              detail={String(health.memory["embedding_model"] || "unknown")}
-            />
-            <Row
-              label="HF Token"
-              status={health.huggingface.token_configured ? "ok" : "warn"}
-              detail={health.huggingface.token_configured ? "configured" : "not set — unauthenticated (rate limited)"}
-            />
-            <Row
-              label="HF Model Cache"
-              status={health.huggingface.model_cached ? "ok" : "warn"}
               detail={
-                health.huggingface.model_cached
-                  ? `cached locally · ${health.huggingface.embedding_model}`
-                  : `not cached · will download on first use`
+                health.memory["vector_enabled"]
+                  ? "ChromaDB vector store · stores user feedback as embeddings, retrieved each run to influence rankings"
+                  : String(health.memory["backend_error"] || "unavailable")
               }
             />
+            <tr className="diag-agent-row">
+              <td className="diag-label diag-agent-label">↳ Embedding Model</td>
+              <td className={`diag-icon ${health.huggingface.model_cached ? "diag-ok" : "diag-warn"}`}>●</td>
+              <td className="diag-detail">
+                <span>{String(health.memory["embedding_model"] || health.huggingface.embedding_model || "unknown")}</span>
+                <span className="diag-agent-purpose">
+                  {" · "}
+                  {health.huggingface.model_cached ? "cached locally" : "not cached — will download on first use"}
+                  {!health.huggingface.token_configured && " · HF token not set (rate limited)"}
+                </span>
+              </td>
+            </tr>
             <Row
               label="CrewAI"
               status={health.crewai.available ? "ok" : "err"}
-              detail={health.crewai.detail}
+              detail={`${health.crewai.detail} · defines Ranking Strategist and Critic as structured agents with roles, goals, and tasks`}
             />
             {health.crewai.agents.map((agent) => (
               <tr key={agent.role} className="diag-agent-row">
@@ -170,12 +177,23 @@ export function DiagnosticsPanel({ refresh = 0 }: Props) {
             <Row
               label="LangChain Core"
               status={health.langchain.available ? "ok" : "err"}
-              detail={health.langchain.detail}
+              detail={`${health.langchain.detail} · @tool decorator for Critic scoring functions`}
             />
+            {([
+              ["meeting_proximity_tool",    "scores candidates by how close calendar events are to the top"],
+              ["vip_alignment_tool",        "scores candidates by how well VIP-involved items are prioritized"],
+              ["episodic_consistency_tool", "scores candidates against past episodic corrections from ChromaDB"],
+            ] as [string, string][]).map(([name, purpose]) => (
+              <tr key={name} className="diag-agent-row">
+                <td className="diag-label diag-agent-label">↳ {name}</td>
+                <td className={`diag-icon ${health.langchain.available ? "diag-ok" : "diag-err"}`}>●</td>
+                <td className="diag-detail diag-agent-purpose">{purpose}</td>
+              </tr>
+            ))}
             <Row
               label="LangGraph"
               status={health.langgraph.available ? "ok" : "err"}
-              detail={health.langgraph.detail}
+              detail={`${health.langgraph.detail} · orchestrates the digest workflow as a directed node graph`}
             />
             {health.langgraph.graph && (
               <>
@@ -202,13 +220,52 @@ export function DiagnosticsPanel({ refresh = 0 }: Props) {
             <Row
               label="FastMCP"
               status={health.fastmcp.available ? "ok" : "err"}
-              detail={health.fastmcp.detail}
+              detail={`${health.fastmcp.detail} · hosts the Tree-of-Thought branch state server on port 8001`}
+            />
+            <tr className="diag-agent-row">
+              <td className="diag-label diag-agent-label">↳ Branch State</td>
+              <td className={`diag-icon ${health.mcp.available ? "diag-ok" : "diag-err"}`}>●</td>
+              <td className="diag-detail">
+                <span>{health.mcp.detail}</span>
+                <span className="diag-agent-purpose"> · shares candidate ranking state between LangGraph nodes</span>
+              </td>
+            </tr>
+
+            <SectionHeader
+              title="Shadow Mode"
+              badge={
+                <span className={health.shadow.gates_passed === true ? "diag-badge diag-ok" : health.shadow.gates_passed === false ? "diag-badge diag-err" : "diag-badge diag-optional"}>
+                  {health.shadow.gates_passed === true ? "gates passing" : health.shadow.gates_passed === false ? "gates failing" : "no data yet"}
+                </span>
+              }
             />
             <Row
-              label="MCP Branch State"
-              status={health.mcp.available ? "ok" : "err"}
-              detail={health.mcp.detail}
+              label="Agent B (shadow)"
+              status={health.shadow.enabled ? "ok" : "err"}
+              detail="runs silently alongside every digest · read-only, never shown to user"
             />
+            <tr className="diag-agent-row">
+              <td className="diag-label diag-agent-label">↳ Local runs</td>
+              <td className={`diag-icon ${health.shadow.run_count > 0 ? "diag-ok" : "diag-warn"}`}>●</td>
+              <td className="diag-detail">
+                {health.shadow.run_count > 0 ? `${health.shadow.run_count} run${health.shadow.run_count !== 1 ? "s" : ""} logged` : "no runs yet — run a digest to populate"}
+              </td>
+            </tr>
+            {health.shadow.metrics_total > 0 && (
+              <tr className="diag-agent-row">
+                <td className="diag-label diag-agent-label">↳ CI metrics</td>
+                <td className={`diag-icon ${health.shadow.gates_passed ? "diag-ok" : "diag-err"}`}>●</td>
+                <td className="diag-detail">
+                  <span>{health.shadow.metrics_total} runs</span>
+                  <span className="diag-agent-purpose">
+                    {health.shadow.valid_rate != null && ` · schema ${(health.shadow.valid_rate * 100).toFixed(0)}%`}
+                    {health.shadow.timeout_rate != null && ` · timeout ${(health.shadow.timeout_rate * 100).toFixed(0)}%`}
+                    {health.shadow.avg_overlap != null && ` · overlap ${(health.shadow.avg_overlap * 100).toFixed(0)}%`}
+                    {health.shadow.promotion_pass_rate != null && ` · promotion ${(health.shadow.promotion_pass_rate * 100).toFixed(0)}%`}
+                  </span>
+                </td>
+              </tr>
+            )}
 
             <SectionHeader
               title="Observability"

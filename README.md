@@ -227,6 +227,8 @@ Once the app is running at **http://localhost:8000**:
 
    The more specific the feedback, the better — the episodic memory matches on keywords from the current run context. Corrections are applied in two ways: soft (included in the LLM prompt as mandatory rules) and hard (enforced deterministically in Python after candidate selection, regardless of LLM output).
 
+   Episodic memory influences the pipeline at two points: it is injected into the **Strategist** prompt as mandatory ranking instructions, and it is also queried by the **Critic** during scoring via `episodic_consistency_tool` — which penalizes candidates that contradict past corrections. This means a stored correction shapes both which candidates are generated and how they are evaluated.
+
    **Hard-coded rules (always enforced, not configurable via feedback):**
    - Overdue tasks are forced to `high` priority and injected at the top of key highlights — even if the Strategist omitted them entirely
    - When a VIP calendar attendee also has a recent email thread, a Google Tasks follow-up reminder is created automatically — this is deterministic Python logic, not LLM-driven. It is idempotent (a marker in the task notes prevents duplicates across runs)
@@ -366,6 +368,8 @@ Agent B runs silently on every digest and logs results to `.memory/key_highlight
 
 **Lab UI** — a dedicated shadow comparison page is available at `http://localhost:8000/shadow`. It shows each run as a card with Agent A and Agent B highlights side by side, overlap ratio, ordering changes, confidence, and schema validity badges. A **Lab** button in the main nav opens it in a new tab.
 
+**Diagnostics panel** — the main app diagnostics panel includes a Shadow Mode section showing local run count and the latest CI gate results (schema validity, timeout rate, overlap, promotion pass rate) at a glance. A stuck run counter or a failing gate is immediately visible without running any scripts.
+
 Prepare the CI contract log snapshot:
 
 ```bash
@@ -466,7 +470,7 @@ The app has two processes: a FastAPI backend (`server.py`, port 8000) that hosts
 | **HuggingFace** | Model hub where the embedding model is downloaded from on first run. No account required — the model is public — but setting a `HF_TOKEN` avoids download rate limits that can slow or block the first startup |
 | **Ollama** | Local LLM server that hosts qwen3:8b on your machine. The Ranking Strategist sends prompts to Ollama via HTTP — no data leaves your machine for the local model |
 | **Prompt Redaction** | Two-layer privacy boundary: `_sanitize_items_for_llm()` in `ranking_strategist.py` converts raw signal flags to natural-language hints before the Strategist (Ollama) sees items; `prompt_redaction.py` strips all personal content before the Critic (Claude) is called. Neither model receives raw email addresses, names, or contact details |
-| **Critic Tools** | The Ranking Critic doesn't rely purely on LLM judgment — `critic_tools.py` provides deterministic LangChain tool wrappers (e.g. schema validation, overlap scoring) that the Critic calls during candidate evaluation. This makes scoring more consistent and auditable |
+| **Critic Tools** | The Ranking Critic doesn't rely purely on LLM judgment — `critic_tools.py` provides three deterministic LangChain `@tool` wrappers that the Critic calls during candidate evaluation: `meeting_proximity_tool` (scores how close calendar events are to the top), `vip_alignment_tool` (scores how well VIP-involved items are prioritized), and `episodic_consistency_tool` (queries ChromaDB and scores candidates against past feedback corrections — closing the loop between episodic memory and Critic scoring). This makes scoring structured, consistent, and auditable |
 | **Digest Rendering** | `digest_rendering.py` is a deterministic fallback renderer. If the LLM returns malformed or unparseable output, the pipeline falls back to this to produce a valid digest from raw observations rather than failing |
 | **Shadow Mode** | `key_highlights_agent.py` runs a silent parallel Agent B on every digest, logs its output to `.memory/key_highlights_shadow.jsonl`, and validates it against quality gates — but never shows it to the user. See [Shadow Mode as an A/B Testing Framework](#shadow-mode-as-an-ab-testing-framework-run-a-challenger-agent-silently-never-shown-to-the-user) for the full design rationale and production roadmap |
 | **Galileo** | Optional LLM observability platform. When enabled (`GALILEO_OBSERVABILITY_ENABLED=1`), emits trace events (latency, token counts, node timings) for every LLM call to a Galileo dashboard — useful for debugging and tuning the pipeline |

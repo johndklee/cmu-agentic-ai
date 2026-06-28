@@ -25,7 +25,7 @@ export interface DigestResponse {
 export interface HealthResponse {
   ollama: { reachable: boolean; detail: string; url: string };
   ollama_model: { available: boolean; model: string; detail: string; context_window?: string | null; think_disabled?: boolean };
-  anthropic: { reachable: boolean; detail: string; context_window?: string };
+  anthropic: { reachable: boolean; detail: string; model: string; context_window?: string };
   google: Record<string, unknown>;
   memory: Record<string, unknown>;
   huggingface: {
@@ -75,6 +75,16 @@ export interface HealthResponse {
   };
   weather: { available: boolean; detail: string };
   news: { available: boolean; detail: string };
+  shadow: {
+    enabled: boolean;
+    run_count: number;
+    gates_passed: boolean | null;
+    valid_rate: number | null;
+    timeout_rate: number | null;
+    promotion_pass_rate: number | null;
+    avg_overlap: number | null;
+    metrics_total: number;
+  };
 }
 
 export interface Preferences {

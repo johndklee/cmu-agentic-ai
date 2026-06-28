@@ -10,8 +10,11 @@ SHADOW_LOG_PATH = Path(__file__).with_name(".memory") / "key_highlights_shadow.j
 ALLOWED_CATEGORIES = {"calendar", "emails", "tasks", "weather", "news", "mixed"}
 
 
-def _split_items(value: str, max_items: int = 5) -> List[str]:
-    """Split pipe-delimited text into compact list items."""
+def _split_items(value, max_items: int = 5) -> List[str]:
+    """Split pipe-delimited text or a list of DigestItem dicts into strings."""
+    if isinstance(value, list):
+        items = [item["text"] if isinstance(item, dict) else str(item) for item in value if item]
+        return items[:max_items]
     items = [part.strip() for part in (value or "").split("|") if part.strip()]
     return items[:max_items]
 
@@ -19,7 +22,12 @@ def _split_items(value: str, max_items: int = 5) -> List[str]:
 def _extract_current_highlights(payload: dict, max_items: int = 5) -> List[str]:
     """Extract currently-rendered key highlights from payload for shadow comparison."""
     sections = (payload or {}).get("sections", {}) or {}
-    return _split_items(sections.get("key_highlights", ""), max_items=max_items)
+    raw = sections.get("key_highlights", "")
+    # API/JSON payload has sections as lists of {"text": ...} dicts; flatten to strings
+    if isinstance(raw, list):
+        items = [item["text"] if isinstance(item, dict) else str(item) for item in raw if item]
+        return items[:max_items]
+    return _split_items(raw, max_items=max_items)
 
 
 def _overlap_ratio(current_items: List[str], shadow_items: List[str]) -> float:
@@ -47,7 +55,7 @@ def build_agent_b_input(payload: dict) -> dict:
         "digest_title": (payload or {}).get("title", "Daily Digest"),
         "date_time": f"{(payload or {}).get('date', 'Unknown')} | {(payload or {}).get('time', 'Unknown')}",
         "location": (payload or {}).get("location", "Unknown"),
-        "weather": sections.get("weather", "Unknown"),
+        "weather": " ".join(_split_items(sections.get("weather", "Unknown"), 3)) or "Unknown",
         "news_items": [{"title": item, "source": "", "url": ""} for item in _split_items(sections.get("news", ""), 8)],
         "calendar_items": [{"summary": item, "start": "", "end": "", "attendees": []} for item in _split_items(sections.get("calendar", ""), 8)],
         "task_items": [{"title": item, "status": "", "due": ""} for item in _split_items(sections.get("tasks", ""), 8)],
