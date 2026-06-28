@@ -46,9 +46,12 @@ def _build_ollama_llm(llm_type):
     prefixed = f"ollama/{model}" if not model.startswith("ollama/") else model
     if llm_type is not None:
         try:
-            return llm_type(model=prefixed, base_url=base_url)
+            return llm_type(model=prefixed, base_url=base_url, extra_body={"think": False})
         except Exception:
-            pass
+            try:
+                return llm_type(model=prefixed, base_url=base_url)
+            except Exception:
+                pass
     return prefixed
 
 
@@ -125,7 +128,7 @@ def _build_agents():
 def _build_strategist_crew(task_description: str):
     strategist, critic, Crew, Process, Task = _build_agents()
     task = Task(
-        description=task_description,
+        description="/no_think\n" + task_description,
         expected_output="A JSON array with exactly 5 candidate ranking objects.",
         agent=strategist,
     )
@@ -173,16 +176,27 @@ def run_crewai_ranking_strategist(state: WorkflowState, min_highlights: int = 5)
     crew = _build_strategist_crew(build_prompt(items, corrections if isinstance(corrections, list) else [], min_highlights=min_highlights))
     result = crew.kickoff()
     text = _extract_text(result)
-    candidates = validate_candidates(extract_json_array(text), valid_item_ids)
+    print(f"[strategist] raw output length={len(text)} preview={text[:300]!r}")
+    try:
+        parsed = extract_json_array(text)
+    except Exception as e:
+        print(f"[strategist] JSON parse failed: {e}")
+        return []
+    candidates = validate_candidates(parsed, valid_item_ids)
+    print(f"[strategist] valid_item_ids={valid_item_ids}")
+    print(f"[strategist] candidates after validation: {len(candidates)}, ranking sizes: {[len(c.get('ranking', [])) for c in candidates]}")
     return candidates
 
 
 def run_crewai_ranking_critic(candidate: dict[str, Any]) -> tuple[float, str]:
-    """Use CrewAI critic agent to evaluate ranking coherence.
+    """Evaluate ranking coherence via direct LLM call (no CrewAI crew overhead).
 
     Tries Anthropic (Claude) first; falls back to Ollama if unavailable.
     Returns (coherence_score, llm_label).
     """
+    import re as _re
+    from llm_client import _generate_with_anthropic, _generate_with_ollama
+
     sanitized = [
         {
             "item_id": str(entry.get("item_id") or ""),
@@ -192,34 +206,30 @@ def run_crewai_ranking_critic(candidate: dict[str, Any]) -> tuple[float, str]:
         for entry in (candidate.get("ranking") or [])
         if isinstance(entry, dict)
     ]
-    task_description = (
+    prompt = (
         "Evaluate only coherence of ranking structure and priority choices.\n"
-        "Return strict JSON only with keys coherence and notes.\n"
+        'Return strict JSON only: {"coherence": <float 0..1>, "notes": "<short reason>"}.\n'
         f"Candidate ranking:\n{json.dumps(sanitized, ensure_ascii=True)}\n"
     )
 
-    def _run(use_ollama: bool) -> float:
-        crew = _build_critic_crew(task_description, use_ollama=use_ollama)
-        result = crew.kickoff()
-        text = _extract_text(result).strip()
-        # Strip markdown code fences if the LLM wraps output in ```json ... ```
-        import re as _re
+    def _parse(text: str) -> float:
+        text = text.strip()
         match = _re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, _re.DOTALL)
         if match:
             text = match.group(1).strip()
-        # Also handle bare JSON object embedded in surrounding text
         if not text.startswith("{"):
             obj_match = _re.search(r"\{.*\}", text, _re.DOTALL)
             if obj_match:
                 text = obj_match.group(0).strip()
         parsed = json.loads(text)
-        coherence = float(parsed.get("coherence", 0.0))
-        return max(0.0, min(1.0, coherence))
+        return max(0.0, min(1.0, float(parsed.get("coherence", 0.0))))
 
     try:
-        score = _run(use_ollama=False)
-        return score, f"Claude ({_resolve_anthropic_model()})"
+        model = _resolve_anthropic_model()
+        text = _generate_with_anthropic(prompt, model)
+        return _parse(text), f"Claude ({model})"
     except Exception as anthropic_err:
         print(f"⚠️  Anthropic critic unavailable ({anthropic_err}), falling back to Ollama.")
-        score = _run(use_ollama=True)
-        return score, f"Ollama ({_resolve_ollama_model()}) [Claude fallback]"
+        model = _resolve_ollama_model()
+        text = _generate_with_ollama(prompt, model)
+        return _parse(text), f"Ollama ({model}) [Claude fallback]"
