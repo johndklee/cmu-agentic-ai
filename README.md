@@ -257,9 +257,9 @@ Personal data is sanitized at two points before it reaches any LLM:
 
 Both boundaries are enforced in code, not policy — neither model can receive raw personal data regardless of what other parts of the system do.
 
-### UI Display Masking
+### Email Address Masking (UI and Email Digest)
 
-Email addresses are never shown as-is anywhere in the UI or the emailed digest. At render time, every email address in task titles, calendar organizer and attendee fields, email from/to/cc fields, and the Current Preferences panel summary is replaced with a masked label:
+Email addresses are masked in two places: the web UI and the emailed digest. In both, every email address in task titles, calendar organizer and attendee fields, email from/to/cc fields, and the Current Preferences panel summary is replaced with a masked label:
 
 - `[user]` — the configured user's own email address
 - `[VIP]` — an address on the user's VIP list
