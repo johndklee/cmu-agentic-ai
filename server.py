@@ -417,6 +417,23 @@ def get_mcp_state():
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@app.get("/api/shadow/comparison")
+def get_shadow_comparison(tail: int = 10):
+    """Return last N shadow runs with Agent A and Agent B highlights for comparison."""
+    from key_highlights_agent import SHADOW_LOG_PATH
+    if not SHADOW_LOG_PATH.exists():
+        return {"runs": [], "total": 0}
+    lines = [l for l in SHADOW_LOG_PATH.read_text().splitlines() if l.strip()]
+    records = []
+    for line in lines:
+        try:
+            records.append(_json.loads(line))
+        except Exception:
+            continue
+    recent = records[-tail:]
+    return {"runs": recent, "total": len(records)}
+
+
 @app.get("/api/digest/last")
 def get_last_digest():
     digest = _load_last_digest()
@@ -543,6 +560,14 @@ def update_preferences(body: PreferencesUpdate):
 # ---------------------------------------------------------------------------
 # Serve React build (production)
 # ---------------------------------------------------------------------------
+
+SHADOW_HTML = Path(__file__).parent / "web" / "shadow.html"
+
+@app.get("/shadow", include_in_schema=False)
+def serve_shadow():
+    if SHADOW_HTML.exists():
+        return FileResponse(str(SHADOW_HTML))
+    raise HTTPException(status_code=404, detail="Shadow UI not found")
 
 if WEB_DIST.exists():
     app.mount("/assets", StaticFiles(directory=str(WEB_DIST / "assets")), name="assets")
