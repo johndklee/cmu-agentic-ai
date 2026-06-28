@@ -270,6 +270,10 @@ Once the app is running at **http://localhost:8000**:
 
    ![Digest Feedback Example](docs/images/digest_feedback_example.png)
 
+   After submitting, the feedback is confirmed and the Current Preferences panel updates to show the full correction stored in episodic memory:
+
+   ![Feedback Saved](docs/images/feedback_saved.png)
+
    On the next run, the agent applies the correction — weather is ranked high priority with a jacket reminder, and news is ranked low:
 
    ![Digest After Feedback](docs/images/after_feedback.png)
