@@ -622,15 +622,17 @@ def _rich_inline_to_html(text: str) -> str:
 
     def _replace_open(match: re.Match) -> str:
         token = re.sub(r"\s+", " ", match.group(1).strip().lower())
-        return open_tag_map.get(token, "")
+        return open_tag_map.get(token, match.group(0))  # preserve unknown tags
 
     def _replace_close(match: re.Match) -> str:
         token = re.sub(r"\s+", " ", match.group(1).strip().lower())
-        return close_tag_map.get(token, "")
+        return close_tag_map.get(token, match.group(0))  # preserve unknown tags
 
     html_text = re.sub(r"\[([^/\]]+?)\]", _replace_open, escaped)
     html_text = re.sub(r"\[/([^\]]+?)\]", _replace_close, html_text)
-    html_text = re.sub(r"\[/?[^\]]+\]", "", html_text)
+    # Strip remaining Rich tags but preserve [user]/[VIP]/[other] placeholders
+    from formatting import _RICH_TAG_RE
+    html_text = _RICH_TAG_RE.sub("", html_text)
     return html_text.replace("\n", "<br>\n")
 
 
