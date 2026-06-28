@@ -237,7 +237,7 @@ Claude only receives a numbered list of items with rankings (high/medium/low) �
 
 ### UI Display Masking
 
-Email addresses are never shown as-is in the web UI. At render time, every email address in task titles, calendar organizer and attendee fields, and email from/to/cc fields is replaced with a masked label:
+Email addresses are never shown as-is in the web UI or the emailed digest. At render time, every email address in task titles, calendar organizer and attendee fields, and email from/to/cc fields is replaced with a masked label:
 
 - `[user]` — the configured user's own email address
 - `[VIP]` — an address on the user's VIP list
