@@ -506,6 +506,7 @@ The web UI feedback form collected satisfaction ratings and short comments, whic
 - **Basic personalization** — the agent respects stated preferences and uses episodic memory for corrections, but does not deeply model long-term goals, project structure, or subtle sender priorities beyond the VIP list.
 - **Modest evaluation** — evaluation relies on unit tests, startup diagnostics, and shadow metrics rather than a large labeled dataset of good and bad digests.
 - **Latency** — the multi-agent, multi-step workflow adds complexity and latency compared to a single-prompt summarizer. First run takes 1–2 minutes.
+- **Single-tenant only** — the current design assumes one user, one set of credentials, and one shared data store. ChromaDB paths, preference collections, episodic memory, and Google OAuth tokens are all unnamespaced — there is no tenant isolation. Extending to multi-tenant would require: per-user scoped ChromaDB collections to prevent episodic corrections bleeding across users; per-user OAuth token storage with a secure credential vault; per-tenant or per-company Ollama instances (or a shared GPU server with strict request isolation) to maintain the privacy boundary; and a tenant identity registry to correctly scope PII masking. The Ollama/controlled-infrastructure model works for multiple internal users within the same trust boundary — for a multi-company SaaS deployment, per-tenant infrastructure isolation would be required.
 
 **Realistic next steps:**
 - Integrate additional tools (Slack, Linear, CRM) while preserving privacy guardrails
