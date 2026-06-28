@@ -24,7 +24,7 @@ export interface DigestResponse {
 
 export interface HealthResponse {
   ollama: { reachable: boolean; detail: string; url: string };
-  ollama_model: { available: boolean; model: string; detail: string; context_window?: string | null };
+  ollama_model: { available: boolean; model: string; detail: string; context_window?: string | null; think_disabled?: boolean };
   anthropic: { reachable: boolean; detail: string; context_window?: string };
   google: Record<string, unknown>;
   memory: Record<string, unknown>;

@@ -275,7 +275,7 @@ def _check_ollama_model(base_url: str) -> dict:
         if match:
             ctx = _fetch_ollama_model_context_window(base_url, model)
             ctx_str = f"{ctx // 1024}K" if ctx >= 1024 else (str(ctx) if ctx else "unknown")
-            return {"available": True, "model": model, "detail": f"{model} is pulled", "context_window": ctx_str}
+            return {"available": True, "model": model, "detail": f"{model} is pulled", "context_window": ctx_str, "think_disabled": True}
         return {"available": False, "model": model, "detail": f"{model} not found; run: ollama pull {model}", "context_window": None}
     except Exception as exc:
         return {"available": False, "model": model, "detail": str(exc), "context_window": None}

@@ -103,9 +103,14 @@ export function DiagnosticsPanel({ refresh = 0 }: Props) {
             <Row
               label="Ollama Model"
               status={health.ollama_model.available ? "ok" : "err"}
-              detail={health.ollama_model.available && health.ollama_model.context_window
-                ? `${health.ollama_model.detail} · ${health.ollama_model.context_window} context`
-                : health.ollama_model.detail}
+              detail={(() => {
+                const parts = [health.ollama_model.detail];
+                if (health.ollama_model.available && health.ollama_model.context_window)
+                  parts.push(`${health.ollama_model.context_window} context`);
+                if (health.ollama_model.available && health.ollama_model.think_disabled)
+                  parts.push("no_think");
+                return parts.join(" · ");
+              })()}
             />
             <Row
               label="Anthropic (optional)"
