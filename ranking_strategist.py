@@ -115,13 +115,19 @@ def _build_rankable_items(raw_fetched_data: dict[str, Any]) -> list[dict[str, An
 def _extract_json_array(text: str) -> list[dict[str, Any]]:
     """Extract JSON array payload from plain or fenced model output."""
     cleaned = (text or "").strip()
-    fenced_match = re.search(r"```(?:json)?\s*(\[.*\])\s*```", cleaned, flags=re.DOTALL | re.IGNORECASE)
+    fenced_match = re.search(r"```(?:json)?\s*(\[.*?\]|\{.*?\})\s*```", cleaned, flags=re.DOTALL | re.IGNORECASE)
     if fenced_match:
         cleaned = fenced_match.group(1).strip()
 
     parsed = json.loads(cleaned)
     if isinstance(parsed, list):
         return parsed
+
+    # LLM wrapped array in a dict — extract the first list value found
+    if isinstance(parsed, dict):
+        for val in parsed.values():
+            if isinstance(val, list):
+                return val
 
     array_match = re.search(r"(\[\s*\{.*\}\s*\])", cleaned, flags=re.DOTALL)
     if array_match:
@@ -230,42 +236,76 @@ def _fallback_candidates(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return candidates
 
 
+def _resolve_item_id(raw: str, valid_item_ids: set[str]) -> str | None:
+    """Resolve a raw item_id string to a valid ID, including fuzzy source-prefix matching."""
+    raw = raw.strip()
+    if raw in valid_item_ids:
+        return raw
+    # Fuzzy: match by source prefix (e.g. "weather" → "weather:current")
+    lower = raw.lower().replace("_", " ").replace("-", " ")
+    for source in ("weather", "calendar", "emails", "tasks", "news"):
+        if source in lower:
+            # Find the first valid ID with this source prefix
+            for vid in sorted(valid_item_ids):
+                if vid.startswith(f"{source}:"):
+                    return vid
+    return None
+
+
 def _validate_candidates(candidates: list[dict[str, Any]], valid_item_ids: set[str]) -> list[dict[str, Any]]:
     """Filter and normalize model candidates to expected schema."""
+    # Detect flat ranking list (model skipped candidate wrapper)
+    if candidates and isinstance(candidates[0], dict):
+        first = candidates[0]
+        has_priority = "priority" in first
+        has_item = "item_id" in first or "item" in first
+        has_ranking = "ranking" in first or "rankings" in first or "items" in first or "ranked_items" in first
+        if has_priority and has_item and not has_ranking:
+            candidates = [{"candidate_id": "candidate_1", "strategy": "llm_generated", "ranking": candidates}]
+
     normalized: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
     for index, candidate in enumerate(candidates, start=1):
         if not isinstance(candidate, dict):
             continue
-        ranking_entries = candidate.get("ranking")
+        ranking_entries = (candidate.get("ranking") or candidate.get("rankings")
+                          or candidate.get("items") or candidate.get("candidate_ranking")
+                          or candidate.get("ranked_items"))
         if not isinstance(ranking_entries, list):
             continue
 
         normalized_ranking = []
+        seen_ids.clear()
         for entry in ranking_entries:
             if not isinstance(entry, dict):
                 continue
-            item_id = str(entry.get("item_id") or "").strip()
+            raw_id = str(entry.get("item_id") or entry.get("item") or "").strip()
             source = str(entry.get("source") or "").strip()
             priority = str(entry.get("priority") or "").strip().lower()
             reason = str(entry.get("reason") or "").strip()
-            if not item_id or item_id not in valid_item_ids:
+            item_id = _resolve_item_id(raw_id, valid_item_ids)
+            if not item_id or item_id in seen_ids:
                 continue
             if priority not in ALLOWED_PRIORITIES:
                 continue
+            seen_ids.add(item_id)
             normalized_ranking.append(
                 {
                     "item_id": item_id,
-                    "source": source,
+                    "source": source or item_id.split(":")[0],
                     "priority": priority,
                     "reason": reason or "No reason provided.",
                 }
             )
 
+        # Cap ranking at highlight count to prevent LLM from returning all items
+        from preferences import load_preferences as _load_prefs
+        _max = int((_load_prefs().get("preferred_highlight_count") or 5))
         normalized.append(
             {
-                "candidate_id": str(candidate.get("candidate_id") or f"candidate_{index}"),
+                "candidate_id": str(candidate.get("candidate_id") or candidate.get("id") or f"candidate_{index}"),
                 "strategy": str(candidate.get("strategy") or "llm_generated"),
-                "ranking": normalized_ranking,
+                "ranking": normalized_ranking[:_max],
             }
         )
 
@@ -323,23 +363,23 @@ def _sanitize_items_for_llm(items: list[dict[str, Any]]) -> list[dict[str, Any]]
 def _build_prompt(items: list[dict[str, Any]], corrections: list[dict[str, Any]], min_highlights: int = 5) -> str:
     """Level-1 prompt: generate 5 full candidate rankings."""
     llm_items = _sanitize_items_for_llm(items)
+    valid_ids = [item["item_id"] for item in llm_items]
     return (
         "You are a ranking strategist for a daily digest.\n"
         "Generate exactly 5 Tree-of-Thought candidate rankings.\n"
-        "Use only the provided item_id values.\n"
-        "Output JSON only: an array with exactly 5 objects.\n"
-        "Each candidate object must have keys: candidate_id, strategy, ranking.\n"
-        "Each ranking entry must have keys: item_id, source, priority (high|medium|low), reason.\n"
-        "The reason field must be a plain English sentence explaining why this item matters today. "
-        "Do NOT copy field names or technical values into the reason.\n"
-        f"CRITICAL: Each ranking array MUST contain EXACTLY {min_highlights} or more entries. "
-        f"You MUST include at least {min_highlights} items in every ranking array. "
-        f"A ranking with fewer than {min_highlights} entries is INVALID and will be rejected. "
-        "Rank ALL available items if there are fewer than the minimum.\n"
-        "Do not include markdown fences.\n\n"
+        "Output a JSON array with exactly 5 objects. No markdown fences. No extra keys. No explanation text.\n"
+        "Each object must have exactly these keys: candidate_id (string), strategy (string), ranking (array).\n"
+        "Each ranking entry must have exactly these keys: item_id, source, priority, reason.\n"
+        "  - item_id: MUST be copied exactly from the list below. Do NOT invent or shorten item_id values.\n"
+        "  - source: the source field from the item (e.g. calendar, emails, tasks, news, weather).\n"
+        "  - priority: one of exactly: high, medium, low\n"
+        "  - reason: one plain English sentence explaining why this item matters today.\n"
+        f"CRITICAL: Each ranking array MUST contain {min_highlights} or more entries. "
+        f"A ranking with fewer than {min_highlights} entries will be rejected.\n"
+        f"CRITICAL: Use ONLY these exact item_id values — copy them character-for-character:\n"
+        + "\n".join(f"  {vid}" for vid in valid_ids) + "\n\n"
         f"Rankable items ({len(llm_items)} total):\n{json.dumps(llm_items, ensure_ascii=True)}\n\n"
-        "MANDATORY USER RULES — you MUST apply every rule below to every candidate. "
-        "Violating any rule makes the candidate invalid:\n"
+        "MANDATORY USER RULES — apply every rule to every candidate:\n"
         + "\n".join(
             f"- {c.get('document', '').split('correction_text=')[-1].split(' | ')[0].strip()}"
             for c in corrections[:20]
@@ -370,24 +410,22 @@ def _build_refinement_prompt(
         weaknesses.append("improve overall priority coherence and reasoning clarity")
     weakness_text = "; ".join(weaknesses) if weaknesses else "maintain strengths and refine reasoning"
 
+    correction_rules = "\n".join(
+        f"- {c.get('document', '').split('correction_text=')[-1].split(' | ')[0].strip()}"
+        for c in corrections[:5]
+        if c.get("document")
+    )
     return (
-        f"You are a digest ranking strategist. Level 2 refinement — variant {variant}.\n"
-        f"The candidate below scored: meeting_proximity={scores.get('meeting_proximity', 0):.2f}, "
-        f"vip_alignment={scores.get('vip_alignment', 0):.2f}, "
-        f"episodic_consistency={scores.get('episodic_consistency', 0):.2f}, "
-        f"coherence={scores.get('coherence', 0):.2f}.\n"
+        f"/no_think\nYou are a digest ranking strategist. Level 2 refinement — variant {variant}.\n"
         f"Improvement focus: {weakness_text}.\n"
-        "Output JSON only: a single object (not an array).\n"
-        "Keys: candidate_id (string), strategy (string), ranking (array).\n"
+        "Output JSON only: one object with keys: candidate_id, strategy, ranking.\n"
         "Each ranking entry: item_id, source, priority (high|medium|low), reason.\n"
-        f"CRITICAL: The ranking array MUST contain EXACTLY {min_highlights} or more entries. "
-        f"A ranking with fewer than {min_highlights} entries is INVALID and will be rejected. "
-        "Rank ALL available items if there are fewer than the minimum.\n"
-        "Use only the provided item_id values. Do not include markdown fences.\n"
-        "The reason field must be a plain English sentence. Do NOT copy field names or technical values.\n\n"
-        f"Original ranking to improve:\n{json.dumps(candidate.get('ranking', []), ensure_ascii=True)}\n\n"
-        f"Available items:\n{json.dumps(_sanitize_items_for_llm(items), ensure_ascii=True)}\n\n"
-        f"Past corrections:\n{json.dumps(corrections[:10], ensure_ascii=True)}\n"
+        "  - item_id: copy exactly from the list below, character-for-character.\n"
+        f"CRITICAL: ranking must have exactly {min_highlights} entries — no more, no fewer. Use ONLY these item_id values:\n"
+        + "\n".join(f"  {item['item_id']}" for item in items) + "\n\n"
+        f"Current ranking:\n{json.dumps(candidate.get('ranking', []), ensure_ascii=True)}\n\n"
+        f"Items:\n{json.dumps(_sanitize_items_for_llm(items), ensure_ascii=True)}\n\n"
+        + (f"Rules:\n{correction_rules}\n" if correction_rules else "")
     )
 
 
@@ -401,11 +439,11 @@ def _refine_candidate(
     min_highlights: int = 5,
 ) -> dict[str, Any] | None:
     """Generate one refined version of a surviving Level-1 candidate."""
-    prompt = _build_refinement_prompt(candidate, scores, items, corrections, variant, min_highlights=min_highlights)
+    prompt = "/no_think\n" + _build_refinement_prompt(candidate, scores, items, corrections, variant, min_highlights=min_highlights)
     try:
         from llm_client import _generate_with_ollama, OLLAMA_DEFAULT_MODEL
         model = os.getenv("OLLAMA_MODEL", "").strip() or OLLAMA_DEFAULT_MODEL
-        text = _generate_with_ollama(prompt=prompt, model=model)
+        text = _generate_with_ollama(prompt, model=model)
         cleaned = (text or "").strip()
         fenced = re.search(r"```(?:json)?\s*(\{.*\}|\[.*\])\s*```", cleaned, flags=re.DOTALL | re.IGNORECASE)
         if fenced:
@@ -421,8 +459,9 @@ def _refine_candidate(
             refined["candidate_id"] = f"{candidate.get('candidate_id', 'c')}_r{variant}"
             refined["strategy"] = f"refined:{candidate.get('strategy', 'llm_generated')}"
             return refined
-    except Exception:
-        pass
+    except Exception as e:
+        raw_preview = text[:200] if 'text' in dir() else 'no output'
+        print(f"[refine_candidate] variant={variant} failed: {e} | raw preview={raw_preview!r}")
     return None
 
 
@@ -474,8 +513,10 @@ def ranking_strategist(state: WorkflowState) -> WorkflowState:
                 if refined:
                     leaf_candidates.append(refined)
 
+        print(f"[strategist_l2] leaf_candidates={len(leaf_candidates)}, ranking sizes={[len(c.get('ranking',[])) for c in leaf_candidates]}")
         # Fallback: if refinement failed, carry survivors forward as-is
         if not leaf_candidates:
+            print("[strategist_l2] all refinements failed — carrying survivors forward as-is")
             leaf_candidates = [e.get("candidate") for e in surviving if e.get("candidate")]
 
         next_state["candidate_rankings"] = leaf_candidates
