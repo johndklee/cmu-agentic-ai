@@ -185,6 +185,7 @@ def _generate_with_ollama(user_prompt: str, model: str) -> str:
     if num_ctx:
         options["num_ctx"] = num_ctx
     payload["options"] = options
+    payload["format"] = "json"
     body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
         f"{base_url}/api/chat",

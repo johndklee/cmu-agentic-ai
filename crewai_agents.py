@@ -46,7 +46,7 @@ def _build_ollama_llm(llm_type):
     prefixed = f"ollama/{model}" if not model.startswith("ollama/") else model
     if llm_type is not None:
         try:
-            return llm_type(model=prefixed, base_url=base_url, extra_body={"think": False})
+            return llm_type(model=prefixed, base_url=base_url, extra_body={"think": False, "format": "json"})
         except Exception:
             try:
                 return llm_type(model=prefixed, base_url=base_url)
