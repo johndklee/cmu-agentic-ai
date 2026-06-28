@@ -364,6 +364,8 @@ The net effect is that the agent can improve through feedback but has no mechani
 
 Agent B runs silently on every digest and logs results to `.memory/key_highlights_shadow.jsonl`. For the design rationale and production roadmap see [Shadow Mode as an A/B Testing Framework](#shadow-mode-as-an-ab-testing-framework-run-a-challenger-agent-silently-never-shown-to-the-user). The full two-agent contract (schemas, validation rules, CI runbook, threshold raise policy) is in [`docs/two-agent-contract.md`](docs/two-agent-contract.md). Before any PR that changes shadow behavior, refresh the CI snapshot locally or the CI gate will fail.
 
+**Lab UI** — a dedicated shadow comparison page is available at `http://localhost:8000/shadow`. It shows each run as a card with Agent A and Agent B highlights side by side, overlap ratio, ordering changes, confidence, and schema validity badges. A **Lab** button in the main nav opens it in a new tab.
+
 Prepare the CI contract log snapshot:
 
 ```bash
