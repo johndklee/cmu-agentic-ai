@@ -118,12 +118,12 @@ def ensure_follow_up_task(
         bullet_lines.append(
             f"- {email.get('date', 'unknown date')}: {email.get('subject', '(no subject)')} [{email.get('direction', 'unknown')}]"
         )
-    task_title = f"Follow up with {attendee_email} before {event_summary}"
+    task_title = f"Follow up with [VIP] before {event_summary}"
     notes = (
         f"Follow-up needed before upcoming event.\n"
         f"Event: {event_summary}\n"
         f"Event start: {event_start}\n"
-        f"Attendee: {attendee_email}\n"
+        f"Attendee: [VIP]\n"
         f"Recent related emails:\n" + ("\n".join(bullet_lines) if bullet_lines else "- none") + f"\n{marker}"
     )
     task_body = {"title": task_title, "notes": notes}

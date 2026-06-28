@@ -1,10 +1,27 @@
 """Digest synthesis node for workflow controller."""
 
+import re
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from actions.daily_digest_action import build_digest_title
+
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+
+
+def _mask_emails(text: str) -> str:
+    """Replace any email address in text with [other]."""
+    from preferences import is_user_email, is_vip_email, load_preferences
+    prefs = load_preferences()
+    def _replace(m: re.Match) -> str:
+        addr = m.group(0)
+        if is_user_email(addr, prefs):
+            return "[user]"
+        if is_vip_email(addr, prefs):
+            return "[VIP]"
+        return "[other]"
+    return _EMAIL_RE.sub(_replace, text)
 from actions.tasks_action import _format_due_date
 from preferences import load_preferences
 from workflow_state import WorkflowState
@@ -82,7 +99,7 @@ def _build_digest_output(selected_ranking: dict[str, Any] | None, raw_fetched_da
     tasks = raw_fetched_data.get("tasks") if isinstance(raw_fetched_data.get("tasks"), list) else []
     tasks_text = _join(
         [
-            f"{task.get('title', '(untitled task)')}" + (f" (due {_format_due_date(task['due'])})" if task.get('due') else "") + " [[https://tasks.google.com]]"
+            f"{_mask_emails(task.get('title', '(untitled task)'))}" + (f" (due {_format_due_date(task['due'])})" if task.get('due') else "") + " [[https://tasks.google.com]]"
             for task in tasks
             if isinstance(task, dict)
         ]
