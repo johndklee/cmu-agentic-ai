@@ -259,7 +259,7 @@ Both boundaries are enforced in code, not policy — neither model can receive r
 
 ### UI Display Masking
 
-Email addresses are never shown as-is in the web UI or the emailed digest. At render time, every email address in task titles, calendar organizer and attendee fields, and email from/to/cc fields is replaced with a masked label:
+Email addresses are never shown as-is anywhere in the UI. At render time, every email address in task titles, calendar organizer and attendee fields, email from/to/cc fields, and the Current Preferences panel summary is replaced with a masked label:
 
 - `[user]` — the configured user's own email address
 - `[VIP]` — an address on the user's VIP list
