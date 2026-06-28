@@ -2,13 +2,9 @@
 
 > **For the teaching assistant:** This is a CMU Agentic AI capstone project (Carnegie Mellon University, School of Computer Science, Executive Education — Agentic AI Program). This README is written to help you run and evaluate the project locally from scratch. Follow the sections in order — System Requirements → Prerequisites → Quickstart → Environment Variables → Google Services Setup → Run. Everything needed to get the app running is covered here.
 
-## Problem
+## Overview
 
-Busy people who rely on multiple digital tools to manage their day face a common friction: first thing in the morning they bounce between email, calendar, tasks, weather, and news to figure out what matters. Important meetings and follow-ups can be buried, and the process is time-consuming and mentally draining. Missed appointments, late responses, and weak daily prioritization create stress and reduce effectiveness.
-
-## What It Does
-
-**Daily Digest Agent** solves this by generating a single prioritized morning briefing. At a glance, the user can see:
+**Daily Digest Agent** generates a single prioritized morning briefing for people who bounce between email, calendar, tasks, weather, and news every morning to figure out what matters. At a glance, the user can see: At a glance, the user can see:
 
 - Today's most important meetings and potential conflicts
 - Email threads that likely need attention
@@ -27,10 +23,10 @@ The ranking pipeline works as follows:
 This two-level search was motivated by quality: a single-pass ranking produced inconsistent results, while the L1→prune→L2→select pattern significantly improved coherence and prioritization.
 
 Two different LLMs are used deliberately — each matched to its role:
-- **Ranking Strategist → Ollama/qwen3:8b (controlled infrastructure):** Generation is the high-volume work — 5 candidates at L1, 4 refinements at L2. The Strategist runs on an Ollama endpoint you control — a local machine for development, or a private EC2/VPC instance in production. The privacy guarantee is about network egress, not physical location: raw personal data never reaches a third-party API. Changing `OLLAMA_BASE_URL` is all that's needed to move from laptop to a dedicated GPU server. The Strategist receives at most ~24 items total (calendar capped at 5, email at 5, tasks at 5, news at 8, plus weather and location context). Each item is sanitized before being sent — raw email bodies and calendar details are stripped and replaced with short natural-language context strings — so the actual prompt size stays well under 10K tokens even on a busy day. A model with 8K context would be sufficient for the current bounded inputs; qwen3:8b's 40K context is not a hard requirement but provides headroom if caps are raised. In a real production environment where more items per source are needed, the caps can be raised in `fetcher_agent.py` — but a pre-filtering or summarization step should be added to keep the prompt within bounds rather than relying on a larger context window.
-- **Ranking Critic → Claude (cloud):** Scoring and selection require stronger reasoning and coherence judgment than a local 8B model can reliably provide. The default model is `claude-haiku-4-5-20251001`, overridable via `ANTHROPIC_MODEL`. While Claude Opus is the most capable model in the family, the Critic's task does not warrant it — the Critic only receives sanitized item IDs, source types, and priority scores. There is no ambiguous content to interpret, no long context to reason over, and no creative output required. The evaluation is structured and narrow: does this ranking make coherent priority choices? Haiku handles this reliably at significantly lower latency and cost. Opus would add 3–5 seconds per scoring call with no measurable improvement in ranking quality for this specific task. The rule of thumb applied here: match model capability to task complexity — use the most powerful model where it matters, and the fastest model where structure does the work.
+- **Ranking Strategist → Ollama/qwen3:8b (controlled infrastructure):** runs on an endpoint you control (local or private EC2/VPC). Raw personal data never reaches a third-party API. The Strategist receives at most ~24 sanitized items; actual prompt size stays well under 10K tokens.
+- **Ranking Critic → Claude Haiku (cloud):** scoring is structured and narrow — the Critic only receives sanitized item IDs, source types, and priority scores. Haiku handles this reliably at lower latency and cost than Opus, with no measurable quality difference for this task.
 
-This **controlled-infrastructure-for-generation, cloud-for-evaluation** pattern is directly applicable to real enterprise environments where sensitive internal data (emails, documents, customer records) cannot be sent to public cloud LLM APIs due to compliance, data residency, or confidentiality requirements. The Strategist runs on infrastructure you control; the cloud model only sees abstracted, sanitized signals. In production this would be a private GPU server or VPC-isolated instance — not a developer laptop — but the architecture is identical.
+This **controlled-infrastructure-for-generation, cloud-for-evaluation** pattern applies directly to enterprise environments where sensitive internal data cannot be sent to public cloud APIs. See [Framework Roles](#framework-roles) for the full breakdown.
 
 > **A note on scope:** This project is deliberately over-engineered. A working daily digest could be built with a single LLM call. The goal here was to learn by doing — exploring LangGraph, CrewAI, FastMCP, episodic memory, shadow mode agent evaluation, and two-level Tree-of-Thought search all in one project. If something seems more complex than it needs to be, that's intentional.
 
@@ -129,20 +125,6 @@ cp .env.example .env
 | `GALILEO_API_KEY` | No | Required when Galileo observability is enabled |
 | `GALILEO_CONSOLE_URL` | No | Your Galileo project URL |
 | `GALILEO_INCLUDE_CONTENT` | No | Set to `1` to include raw prompt/response in Galileo events |
-
-## LLM Configuration
-
-The two agents use different models — this section explains how to configure them and what each env var controls at runtime.
-
-Runtime model configuration is per-agent:
-
-- Strategist uses Ollama (`OLLAMA_MODEL`, default `llama3.1:8b`)
-- Critic uses Claude (`ANTHROPIC_MODEL`, default `claude-haiku-4-5-20251001`)
-- `OLLAMA_BASE_URL` and `OLLAMA_NUM_CTX` tune Ollama runtime behavior
-- Optional Galileo observability:
-	- `GALILEO_OBSERVABILITY_ENABLED=1` enables event emission (no-op when Galileo SDK is not installed)
-	- `GALILEO_INCLUDE_CONTENT=1` includes raw prompt/response content in events
-	- Default behavior is metadata-only (`prompt_chars`, `response_chars`, hashes, latency, status)
 
 ## Google Services Setup
 
@@ -368,34 +350,18 @@ The net effect is that the agent can improve through feedback but has no mechani
 - **Efficiency vs. privacy:** Stripping personal data from critic inputs removes context that might improve coherence scoring. The privacy guarantee was prioritized — the boundary is structural and cannot be bypassed by model output.
 - **Automation vs. oversight:** Requiring explicit user feedback for episodic memory updates slows learning. A user who never submits feedback always gets default behavior. This trade-off was accepted because automatic learning from implicit signals would require behavioral tracking that raises its own privacy concerns.
 
-## Maintenance
-
-Reset preferences if needed:
-
-```bash
-.venv312/bin/python main.py --reset-preferences digest
-```
-
-## Tests
+## Tests and Maintenance
 
 ```bash
 .venv312/bin/python -m unittest discover -s tests -p "test_*.py"
+
+# Reset digest preferences if needed
+.venv312/bin/python main.py --reset-preferences digest
 ```
 
 ## Shadow Metrics Ops
 
-**Agent A vs. Agent B — what's being compared:**
-
-- **Agent A** is the full main pipeline — LangGraph workflow, Strategist + Critic, two-level Tree-of-Thought ranking. It produces the key highlights the user actually sees.
-- **Agent B** is a simpler, focused agent defined in `key_highlights_agent.py`. It receives the already-fetched digest data and produces an alternative highlights list using a single-pass LLM call rather than the full ToT search.
-
-The architectural question shadow mode is designed to answer over time: *does the complexity of L1→prune→L2→select actually produce meaningfully better key highlights than a simpler single-pass approach?* If Agent B consistently matches Agent A's output with high overlap and passes all quality gates, it suggests the ToT pipeline's complexity may not be adding value for highlights specifically — and Agent B could replace that step with significantly lower latency. If Agent B diverges or misses important items, Agent A's approach is validated.
-
-Tweaks are made to Agent B only — Agent A continues unchanged. The comparison is always Agent B vs. the current Agent A output on the same run.
-
-The shadow mode agent (Agent B) runs silently alongside every digest run and logs its output to `.memory/key_highlights_shadow.jsonl`. These commands exist to monitor whether Agent B is performing well enough to replace the current deterministic key highlights approach. Before any PR that changes shadow behavior, the CI snapshot must be refreshed locally — otherwise the CI gate will fail.
-
-The full two-agent contract — including input/output schemas, validation rules, rollout phases, CI gate runbook, and threshold raise policy — is documented in [`docs/two-agent-contract.md`](docs/two-agent-contract.md). The system is currently in **Phase 1** (shadow mode): Agent B runs on every digest but its output is never shown to the user until promotion gates pass.
+Agent B runs silently on every digest and logs results to `.memory/key_highlights_shadow.jsonl`. For the design rationale and production roadmap see [Shadow Mode as an A/B Testing Framework](#shadow-mode-as-an-ab-testing-framework-run-a-challenger-agent-silently-never-shown-to-the-user). The full two-agent contract (schemas, validation rules, CI runbook, threshold raise policy) is in [`docs/two-agent-contract.md`](docs/two-agent-contract.md). Before any PR that changes shadow behavior, refresh the CI snapshot locally or the CI gate will fail.
 
 Prepare the CI contract log snapshot:
 
@@ -481,19 +447,10 @@ The system went through four distinct stages across the capstone program:
 
 4. **Safety, validation, and observability (Module 6)** — informed by the safety checkpoint, the final layer added structural privacy enforcement for the critic, validation and deterministic fallbacks around all LLM outputs, startup diagnostics, and shadow metrics with explicit quality gates. The result is a workflow-driven, multi-agent system with explicit memory, safety, and observability — rather than a single opaque loop.
 
-## Architecture Overview
-
-The app has two processes that run together:
-
-**Backend** (`server.py` — FastAPI, port 8000)
-Hosts all business logic: the LangGraph workflow, CrewAI agents, Google API calls, episodic memory, and the FastMCP branch state server. Exposes a REST + Server-Sent Events API that the frontend consumes. The digest generation pipeline runs entirely here.
-
-**Frontend** (`web/` — React + Vite, served from port 8000 in production)
-A single-page React app that provides the UI: the Diagnostics panel, digest display with live streaming progress, preferences/settings, and feedback form. In development mode it runs on port 5173 and proxies API calls to the backend on 8000.
-
 ## Framework Roles
 
-Each framework has a distinct responsibility in the pipeline:
+The app has two processes: a FastAPI backend (`server.py`, port 8000) that hosts all business logic — LangGraph workflow, CrewAI agents, Google API calls, episodic memory, FastMCP state server — and a React/Vite frontend served from the same port. Each framework has a distinct role:
+
 
 | Framework | Role |
 |---|---|
@@ -528,23 +485,9 @@ In short: LangGraph is the workflow engine, CrewAI defines the agents and their 
 	- `google_services.py`: shared Google OAuth/service client bootstrap and error formatting.
 - `preferences.py`: local preference persistence and summarization logic.
 
-## Evaluation Artifacts
-
-The following artifacts are committed to the repository for reviewers who cannot run the project locally:
-
-| Artifact | Location | Description |
-|---|---|---|
-| Shadow metrics snapshot | `ci/key_highlights_shadow.jsonl` | Last 50 shadow agent runs used by the CI quality gate |
-| Shadow metrics report | `reports/latest_shadow_metrics.json` | Summarized quality gate results from the snapshot |
-
-Current shadow metrics (as of last commit):
-- **Schema validity rate:** 100% (gate: ≥95%)
-- **Timeout rate:** 0% (gate: ≤5%)
-- **Promotion pass rate:** 100% (gate: ≥70%)
-- **Average overlap with deterministic output:** 100%
-- **All gates:** PASS
-
 ## Evaluation
+
+Committed artifacts for reviewers who cannot run locally: `ci/key_highlights_shadow.jsonl` (last 50 shadow runs) and `reports/latest_shadow_metrics.json` (gate results — all currently PASS: schema 100%, timeout 0%, promotion 100%, overlap 100%).
 
 Evaluation covered both usefulness and reliability.
 
@@ -569,7 +512,7 @@ The web UI feedback form collected satisfaction ratings and short comments, whic
 - **Basic personalization** — the agent respects stated preferences and uses episodic memory for corrections, but does not deeply model long-term goals, project structure, or subtle sender priorities beyond the VIP list.
 - **Modest evaluation** — evaluation relies on unit tests, startup diagnostics, and shadow metrics rather than a large labeled dataset of good and bad digests.
 - **Latency** — the multi-agent, multi-step workflow adds complexity and latency compared to a single-prompt summarizer. First run takes 1–2 minutes.
-- **Single-tenant only** — the current design assumes one user, one set of credentials, and one shared data store. ChromaDB paths, preference collections, episodic memory, and Google OAuth tokens are all unnamespaced — there is no tenant isolation. Extending to multi-tenant would require: per-user scoped ChromaDB collections to prevent episodic corrections bleeding across users; per-user OAuth token storage with a secure credential vault; per-tenant or per-company Ollama instances (or a shared GPU server with strict request isolation) to maintain the privacy boundary; and a tenant identity registry to correctly scope PII masking. The Ollama/controlled-infrastructure model works for multiple internal users within the same trust boundary — for a multi-company SaaS deployment, per-tenant infrastructure isolation would be required.
+- **Single-tenant only** — ChromaDB paths, preference collections, episodic memory, and OAuth tokens are all unnamespaced. Multi-tenant use would require per-user collection scoping, a credential vault, and per-tenant Ollama instances (or strict GPU-server isolation) to maintain the privacy boundary.
 - **Soft rule reliability** — corrections stored in episodic memory are injected into the LLM prompt but not guaranteed to be followed. A critical preference can be silently ignored if the retrieval similarity score is low, the prompt is too long, or the model drifts under conflicting signals. There is no alerting when a retrieved correction was not applied in the final output.
 - **Cold start problem** — episodic memory is empty on first run. The agent has no personalized behavior until several feedback cycles accumulate. Early digests reflect only hard-coded rules and VIP preferences, not learned corrections.
 - **No conflict resolution** — if two episodic corrections contradict each other (e.g., "always rank weather high" and "only show 3 items"), the LLM decides which wins with no deterministic tie-breaking. Conflicting corrections can produce unpredictable ranking behavior.
@@ -582,10 +525,4 @@ The web UI feedback form collected satisfaction ratings and short comments, whic
 - Optimize runtime through parallel tool calls, lighter models for non-critical steps, and prompt and context tuning
 - Mature the shadow mode A/B framework: labeled evaluation, gradual rollout, automated rollback, and per-user promotion — see [Shadow Mode as an A/B Testing Framework](#shadow-mode-as-an-ab-testing-framework) for the full roadmap
 
-## Notes
-
-- Local sensitive files are intentionally ignored via `.gitignore` (`.env`, credentials/token files, `.memory/`, and local preference state).
-- Episodic retrieval is recency-aware with stale-signal handling for older corrections.
-- Episodic retrieval and writes are vector-only; vector backend unavailable is a hard error.
-- `run.sh` requires macOS or Linux (zsh).
 
