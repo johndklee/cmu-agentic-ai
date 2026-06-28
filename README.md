@@ -236,8 +236,6 @@ Once the app is running at **http://localhost:8000**:
 
    ![Digest Feedback](docs/images/digest_feedback.png)
 
-   ![Digest Feedback Detail](docs/images/digest_feedback_detail.png)
-
    The more specific the feedback, the better — the episodic memory matches on keywords from the current run context. Corrections are applied in two ways: soft (included in the LLM prompt as mandatory rules) and hard (enforced deterministically in Python after candidate selection, e.g. overdue tasks are always forced to high priority regardless of LLM output). For example, to teach the agent to prioritize weather on bad weather days:
 
    > *"When weather conditions require an umbrella (rain) or a thicker coat (cold below 50°F / 10°C), weather should be ranked as high priority, not medium or low."*
