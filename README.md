@@ -423,7 +423,7 @@ Enforce quality gates locally (non-zero exit on failure):
 
 Use `--tail N` to show more runs, `--log-path` to point at a different log file. Each run shows Agent A's actual highlights alongside Agent B's alternative, with overlap ratio and ordering changes.
 
-## Shadow Mode as an A/B Testing Framework
+## Shadow Mode as an A/B Testing Framework (run a challenger agent silently, never shown to the user)
 
 Shadow mode is more than a validation step for one agent swap — it is an architectural pattern for safely evolving any part of an agentic system without exposing users to unvalidated changes.
 
