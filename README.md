@@ -232,6 +232,10 @@ Once the app is running at **http://localhost:8000**:
    - The pipeline runs: fetches Gmail, Calendar, Tasks, News, and Weather → L1 ToT generates 5 rankings → Critic prunes to top 2 → L2 ToT refines to 4 leaf candidates → Critic selects best → synthesizes final digest
    - First run takes 1–2 minutes as the LLM processes all candidates
    - The digest appears on screen when complete
+   - The terminal running `run.sh` prints diagnostic output during the run — this is normal and useful for understanding pipeline behavior:
+     - `[strategist]` lines show the raw LLM output length, valid item IDs, and how many candidates passed validation
+     - `[synthesize]` lines confirm how many ranking entries the selected candidate has
+     - `[refine_candidate]` lines report any L2 refinement failures (timeouts or parse errors) — the pipeline recovers automatically via fallback
 
    ![Daily Digest Output](docs/images/digest_output.png)
 
