@@ -626,10 +626,10 @@ def summarize_digest_preferences(preferences: dict) -> str:
     if identity.get("email"):
         alias_count = max(0, len(identity.get("emails") or []) - 1)
         alias_suffix = f" (+{alias_count} aliases)" if alias_count else ""
-        summary_parts.append(f"User email: {identity['email']}{alias_suffix}.")
+        summary_parts.append(f"User email: [user]{alias_suffix}.")
     vip_emails = get_vip_emails(preferences)
     if vip_emails:
-        summary_parts.append("VIP emails: " + ", ".join(vip_emails) + ".")
+        summary_parts.append("VIP emails: " + ", ".join("[VIP]" for _ in vip_emails) + ".")
     if improvement_notes:
         summary_parts.append(
             "Requested improvements history: " + " | ".join(improvement_notes)
