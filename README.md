@@ -240,7 +240,7 @@ Once the app is running at **http://localhost:8000**:
 
    > *"When the temperature is below 65°F, weather should be ranked high priority in key highlights and must include a reminder to bring a light jacket. For example: 'High today is 58°F — bring a light jacket if heading outside.'*
    >
-   > *News headlines should always be ranked low priority in key highlights. Calendar events, tasks, and emails should rank above news regardless of the headline content."*
+   > *News headlines should always be ranked low priority — they should still appear in key highlights, but below calendar events, tasks, and emails regardless of the headline content."*
 
    ![Digest Feedback Example](docs/images/digest_feedback_example.png)
 
