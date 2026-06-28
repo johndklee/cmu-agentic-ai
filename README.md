@@ -201,7 +201,7 @@ Once the app is running at **http://localhost:8000**:
 
 2. **Set your preferences** — expand the **Current Preferences** panel and click **Settings**:
    - Enter your name and email address
-   - Set your location (used for weather)
+   - Set your location (city or city + state, e.g. "Pittsburgh, PA") — used to determine local time zone, current weather, and weather-based key highlights
    - Add VIP email addresses (people whose emails get priority in ranking)
    - Choose temperature unit and number of key highlights
    - Check **Email daily digest** to receive the digest in your inbox after each run — the digest is sent from and to the email address you entered above, which must be the same Google account you authorized during Google OAuth setup
