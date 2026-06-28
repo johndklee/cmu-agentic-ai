@@ -219,7 +219,7 @@ Once the app is running at **http://localhost:8000**:
 
    ![Digest Feedback Detail](docs/images/digest_feedback_detail.png)
 
-   The more specific the feedback, the better — the episodic memory matches on keywords from the current run context. For example, to teach the agent to prioritize weather on bad weather days:
+   The more specific the feedback, the better — the episodic memory matches on keywords from the current run context. Corrections are applied in two ways: soft (included in the LLM prompt as mandatory rules) and hard (enforced deterministically in Python after candidate selection, e.g. overdue tasks are always forced to high priority regardless of LLM output). For example, to teach the agent to prioritize weather on bad weather days:
 
    > *"When weather conditions require an umbrella (rain) or a thicker coat (cold below 50°F / 10°C), weather should be ranked as high priority, not medium or low."*
 
@@ -233,7 +233,12 @@ Once the app is running at **http://localhost:8000**:
 
 ### Privacy Boundary (Structural)
 
-Claude only receives a numbered list of items with rankings (high/medium/low) — no email content, no sender names, no event titles, no task details. All personal data is stripped before the API call by `prompt_redaction.py`. This is enforced in code, not policy — the cloud model cannot receive raw personal data regardless of what other parts of the system do.
+Personal data is sanitized at two points before it reaches any LLM:
+
+- **Strategist (Ollama/local):** `_sanitize_items_for_llm()` in `ranking_strategist.py` converts raw signal flags (e.g. `attendee_is_vip: true`) into natural-language context hints (e.g. `"involves a VIP contact"`) before items are sent to qwen3. Raw field names never appear in the prompt, preventing the model from echoing internal keys into the digest output.
+- **Critic (Claude/cloud):** `prompt_redaction.py` strips all personal content before the API call. Claude only receives sanitized item IDs, sources, and priority scores — no email content, sender names, event titles, or task details.
+
+Both boundaries are enforced in code, not policy — neither model can receive raw personal data regardless of what other parts of the system do.
 
 ### UI Display Masking
 
@@ -373,7 +378,7 @@ Each framework has a distinct responsibility in the pipeline:
 | **Sentence Transformers** | Embedding model (`all-MiniLM-L6-v2`) that converts feedback text into vectors for storage and similarity search in ChromaDB |
 | **HuggingFace** | Model hub where the embedding model is downloaded from on first run. No account required — the model is public — but setting a `HF_TOKEN` avoids download rate limits that can slow or block the first startup |
 | **Ollama** | Local LLM server that hosts qwen3:8b on your machine. The Ranking Strategist sends prompts to Ollama via HTTP — no data leaves your machine for the local model |
-| **Prompt Redaction** | Before any text is sent to the LLM, `prompt_redaction.py` strips sensitive data (email addresses, personal names) from the prompt. This prevents accidental leakage of contact details to cloud APIs |
+| **Prompt Redaction** | Two-layer privacy boundary: `_sanitize_items_for_llm()` in `ranking_strategist.py` converts raw signal flags to natural-language hints before the Strategist (Ollama) sees items; `prompt_redaction.py` strips all personal content before the Critic (Claude) is called. Neither model receives raw email addresses, names, or contact details |
 | **Critic Tools** | The Ranking Critic doesn't rely purely on LLM judgment — `critic_tools.py` provides deterministic LangChain tool wrappers (e.g. schema validation, overlap scoring) that the Critic calls during candidate evaluation. This makes scoring more consistent and auditable |
 | **Digest Rendering** | `digest_rendering.py` is a deterministic fallback renderer. If the LLM returns malformed or unparseable output, the pipeline falls back to this to produce a valid digest from raw observations rather than failing |
 | **Shadow Mode** | `key_highlights_agent.py` runs a silent parallel Agent B alongside the main pipeline to generate and validate an alternative key highlights output. Results are logged to `.memory/key_highlights_shadow.jsonl` for quality tracking but never shown to the user — used to evaluate whether Agent B is ready to replace the current approach |
