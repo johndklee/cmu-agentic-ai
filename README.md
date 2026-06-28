@@ -103,7 +103,7 @@ cp .env.example .env   # then fill in your keys
 
 The app runs at **http://localhost:8000**. At startup it shows a diagnostics panel confirming all services are connected.
 
-> **First run note:** On first startup the embedding model (`sentence-transformers/all-MiniLM-L6-v2`, ~90MB) downloads automatically from HuggingFace. The app will appear to hang for 30–60 seconds with no output — this is normal. Subsequent starts are instant.
+> **First run note:** On first startup the embedding model (`sentence-transformers/all-MiniLM-L6-v2`, ~90MB) downloads automatically from HuggingFace. The app will appear to hang for 30–60 seconds with no output — this is normal. Subsequent starts are instant. The model is loaded once at server startup and shared across all retrieval calls via a module-level singleton — it is not reloaded on each digest run.
 
 ![Diagnostics Panel](docs/images/diagnostics_panel.png)
 
@@ -412,7 +412,7 @@ Each framework has a distinct responsibility in the pipeline:
 |---|---|
 | **LangGraph** | Orchestrates the end-to-end workflow as a directed graph — manages node sequencing, conditional routing (e.g. critic decides whether to refine or proceed), and state passing between steps |
 | **LangChain Core** | Provides the LLM client abstraction used by the Critic to call Claude; also supplies tool-calling utilities used during candidate scoring |
-| **CrewAI** | Defines the two specialized agents — **Ranking Strategist** (uses Ollama/qwen3:8b to generate and refine candidate rankings) and **Ranking Critic** (uses Claude to score coherence and select winners) — and manages their role definitions and LLM bindings |
+| **CrewAI** | Defines the **Ranking Strategist** agent (uses Ollama/qwen3:8b to generate and refine candidate rankings) and manages its role definition and LLM binding. The Ranking Critic calls Claude directly via the Anthropic API rather than through a CrewAI crew — this avoids subprocess spawning overhead that was causing the embedding model to reload on every scoring call |
 | **FastMCP** | Runs a lightweight MCP (Model Context Protocol) server on port 8001 that tracks Tree-of-Thought branch state across workflow steps — specifically: storing the 5 L1 candidate rankings, recording Critic scores and pruning decisions, and tracking L2 refinement rounds. This gives each agent a shared, structured view of the ToT search tree without passing large blobs through LangGraph state |
 | **ChromaDB** | Vector database that persists episodic memory — stores user feedback corrections as embeddings so past preferences can be retrieved and applied to future digests |
 | **Sentence Transformers** | Embedding model (`all-MiniLM-L6-v2`) that converts feedback text into vectors for storage and similarity search in ChromaDB |
