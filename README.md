@@ -235,6 +235,16 @@ Once the app is running at **http://localhost:8000**:
 
 Claude only receives a numbered list of items with rankings (high/medium/low) — no email content, no sender names, no event titles, no task details. All personal data is stripped before the API call by `prompt_redaction.py`. This is enforced in code, not policy — the cloud model cannot receive raw personal data regardless of what other parts of the system do.
 
+### UI Display Masking
+
+Email addresses are never shown as-is in the web UI. At render time, every email address in task titles, calendar organizer and attendee fields, and email from/to/cc fields is replaced with a masked label:
+
+- `[user]` — the configured user's own email address
+- `[VIP]` — an address on the user's VIP list
+- `[other]` — any other third-party address
+
+The raw addresses are preserved in Google Tasks/Calendar/Gmail and in the internal observation strings used by the LLM — only the display layer applies the substitution. This prevents accidental PII exposure in the UI without affecting the agent's ability to reason about contacts.
+
 ### LLM Output Validation
 
 All outputs from the Ollama strategist are validated before use:
