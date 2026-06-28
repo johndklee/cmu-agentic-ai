@@ -17,8 +17,8 @@ export function PreferencesPanel({ onEdit, refresh = 0 }: Props) {
 
   const rows: [string, string][] = [
     ["Name", prefs.user_name || "—"],
-    ["Email", prefs.user_email || "—"],
-    ["VIP emails", prefs.vip_email_addresses.join(", ") || "—"],
+    ["Email", prefs.user_email ? "[user]" : "—"],
+    ["VIP emails", prefs.vip_email_addresses.length > 0 ? prefs.vip_email_addresses.map(() => "[VIP]").join(", ") : "—"],
     ["Temperature unit", prefs.temperature_unit || "—"],
     ["Preferred location", prefs.preferred_location_text || "—"],
     ["Key highlights", `${prefs.preferred_highlight_count ?? 5}`],
