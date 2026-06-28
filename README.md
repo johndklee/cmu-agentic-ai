@@ -251,6 +251,17 @@ Once the app is running at **http://localhost:8000**:
    **Soft rules (feedback-driven, LLM is instructed but not guaranteed):**
    - Everything stored in episodic memory — weather priority, news ranking, jacket reminders, VIP emphasis — is retrieved and injected into the Strategist prompt as mandatory instructions. The LLM usually follows them, but soft rules can be missed if the similarity retrieval score is low, if the prompt is too long, or if the model drifts under conflicting signals. If a correction is critical enough to always apply, it should be promoted to a hard rule in code rather than left as a soft prompt instruction.
 
+   **How user preferences interact with enforcement:**
+
+   User preferences (stored separately in `preferences.py`) and episodic memory corrections are distinct — preferences control identity and display settings, episodic memory stores natural language feedback corrections. They interact with enforcement differently:
+
+   | Preference | Applied as |
+   |---|---|
+   | VIP email addresses | Soft — passed to Strategist prompt; LLM is told to prioritize but not guaranteed |
+   | Number of highlights | Hard — digest is sliced to exactly this count in Python after selection |
+   | Temperature unit | Hard — applied at render time in Python, not LLM-controlled |
+   | Episodic feedback corrections | Soft — retrieved by similarity and injected into prompt; LLM-dependent |
+
    For example:
 
    > *"When the temperature is below 65°F, weather should be ranked high priority in key highlights and must include a reminder to bring a light jacket. For example: 'High today is 58°F — bring a light jacket if heading outside.'*
