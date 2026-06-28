@@ -210,6 +210,12 @@ def synthesize_digest(state: WorkflowState) -> WorkflowState:
 
     selected = _select_best_candidate(candidate_rankings, scores)
     selected = _enforce_episodic_corrections(selected, raw_fetched_data)
+    ranking_entries = (selected or {}).get("ranking") or []
+    print(f"[synthesize] selected candidate has {len(ranking_entries)} ranking entries")
+    if not ranking_entries:
+        print(f"[synthesize] WARNING: ranking is empty — candidates={len(candidate_rankings)}, scores={len(scores)}")
+        for c in candidate_rankings[:3]:
+            print(f"  candidate {c.get('candidate_id')}: {len(c.get('ranking') or [])} entries")
     next_state["selected_ranking"] = selected
     next_state["digest_output"] = _build_digest_output(selected, raw_fetched_data)
     return next_state

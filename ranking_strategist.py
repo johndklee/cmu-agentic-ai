@@ -275,8 +275,54 @@ def _validate_candidates(candidates: list[dict[str, Any]], valid_item_ids: set[s
 SURVIVORS = 2  # top candidates carried from Level 1 to Level 2
 
 
+def _signals_to_context(signals: dict[str, Any], source: str) -> str:
+    """Translate internal signal flags into a natural-language context hint for the LLM."""
+    parts = []
+    if source == "calendar_events":
+        if signals.get("organizer_is_vip") or signals.get("attendee_is_vip"):
+            parts.append("involves a VIP contact")
+        count = signals.get("attendee_count", 0)
+        if count > 1:
+            parts.append(f"{count} attendees")
+    elif source == "emails":
+        if signals.get("is_unread"):
+            parts.append("unread")
+        if signals.get("vip_matches", 0) > 0:
+            parts.append("from a VIP contact")
+    elif source == "tasks":
+        if signals.get("is_overdue"):
+            parts.append("OVERDUE — past due date")
+        elif signals.get("has_due"):
+            parts.append("has a due date")
+    elif source == "weather":
+        if signals.get("is_rainy"):
+            parts.append("rainy — umbrella needed")
+        if signals.get("is_cold_below_10c"):
+            parts.append("cold below 10°C / 50°F")
+    return "; ".join(parts) if parts else ""
+
+
+def _sanitize_items_for_llm(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Strip raw signal dicts and replace with natural-language context strings."""
+    result = []
+    for item in items:
+        signals = item.get("signals") or {}
+        source = item.get("source", "")
+        context = _signals_to_context(signals, source)
+        sanitized = {
+            "item_id": item["item_id"],
+            "source": source,
+            "summary": item.get("summary", ""),
+        }
+        if context:
+            sanitized["context"] = context
+        result.append(sanitized)
+    return result
+
+
 def _build_prompt(items: list[dict[str, Any]], corrections: list[dict[str, Any]], min_highlights: int = 5) -> str:
     """Level-1 prompt: generate 5 full candidate rankings."""
+    llm_items = _sanitize_items_for_llm(items)
     return (
         "You are a ranking strategist for a daily digest.\n"
         "Generate exactly 5 Tree-of-Thought candidate rankings.\n"
@@ -284,12 +330,14 @@ def _build_prompt(items: list[dict[str, Any]], corrections: list[dict[str, Any]]
         "Output JSON only: an array with exactly 5 objects.\n"
         "Each candidate object must have keys: candidate_id, strategy, ranking.\n"
         "Each ranking entry must have keys: item_id, source, priority (high|medium|low), reason.\n"
+        "The reason field must be a plain English sentence explaining why this item matters today. "
+        "Do NOT copy field names or technical values into the reason.\n"
         f"CRITICAL: Each ranking array MUST contain EXACTLY {min_highlights} or more entries. "
         f"You MUST include at least {min_highlights} items in every ranking array. "
         f"A ranking with fewer than {min_highlights} entries is INVALID and will be rejected. "
         "Rank ALL available items if there are fewer than the minimum.\n"
         "Do not include markdown fences.\n\n"
-        f"Rankable items ({len(items)} total):\n{json.dumps(items, ensure_ascii=True)}\n\n"
+        f"Rankable items ({len(llm_items)} total):\n{json.dumps(llm_items, ensure_ascii=True)}\n\n"
         "MANDATORY USER RULES — you MUST apply every rule below to every candidate. "
         "Violating any rule makes the candidate invalid:\n"
         + "\n".join(
@@ -335,9 +383,10 @@ def _build_refinement_prompt(
         f"CRITICAL: The ranking array MUST contain EXACTLY {min_highlights} or more entries. "
         f"A ranking with fewer than {min_highlights} entries is INVALID and will be rejected. "
         "Rank ALL available items if there are fewer than the minimum.\n"
-        "Use only the provided item_id values. Do not include markdown fences.\n\n"
+        "Use only the provided item_id values. Do not include markdown fences.\n"
+        "The reason field must be a plain English sentence. Do NOT copy field names or technical values.\n\n"
         f"Original ranking to improve:\n{json.dumps(candidate.get('ranking', []), ensure_ascii=True)}\n\n"
-        f"Available items:\n{json.dumps(items, ensure_ascii=True)}\n\n"
+        f"Available items:\n{json.dumps(_sanitize_items_for_llm(items), ensure_ascii=True)}\n\n"
         f"Past corrections:\n{json.dumps(corrections[:10], ensure_ascii=True)}\n"
     )
 
