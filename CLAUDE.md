@@ -77,7 +77,7 @@ bash scripts/setup_claude_code.sh --with-crewai
 
 Each agent has its own model — configuration is per-agent, not global:
 - Strategist uses Ollama (`OLLAMA_MODEL`, default `llama3.1:8b` — recommend `qwen3:8b` for 128K context)
-- Critic uses Claude (`ANTHROPIC_MODEL`, default `claude-opus-4-6`)
+- Critic uses Claude (`ANTHROPIC_MODEL`, default `claude-haiku-4-5-20251001`)
 - `OLLAMA_BASE_URL`: Ollama endpoint (default `http://localhost:11434`)
 - `OLLAMA_NUM_CTX`: optional context window override
 - `OLLAMA_REQUEST_TIMEOUT_SECONDS`: request timeout (default 300)

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OLLAMA_DEFAULT_MODEL = "llama3.1:8b"
-ANTHROPIC_DEFAULT_MODEL = "claude-opus-4-6"
+ANTHROPIC_DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 
 
 def _is_truthy_env(value: str | None) -> bool:
@@ -175,8 +175,10 @@ def _generate_with_ollama(user_prompt: str, model: str) -> str:
         "stream": False,
     }
     num_ctx = _resolve_ollama_num_ctx()
+    options: dict = {"think": False}
     if num_ctx:
-        payload["options"] = {"num_ctx": num_ctx}
+        options["num_ctx"] = num_ctx
+    payload["options"] = options
     body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
         f"{base_url}/api/chat",
@@ -186,13 +188,13 @@ def _generate_with_ollama(user_prompt: str, model: str) -> str:
             "Content-Type": "application/json",
         },
     )
-    timeout_seconds = 120
+    timeout_seconds = 180
     try:
-        timeout_seconds = int(os.getenv("OLLAMA_REQUEST_TIMEOUT_SECONDS", "120").strip())
+        timeout_seconds = int(os.getenv("OLLAMA_REQUEST_TIMEOUT_SECONDS", "180").strip())
     except ValueError:
-        timeout_seconds = 120
+        timeout_seconds = 180
     if timeout_seconds <= 0:
-        timeout_seconds = 120
+        timeout_seconds = 180
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
             raw = response.read().decode("utf-8")
