@@ -415,6 +415,14 @@ Enforce quality gates locally (non-zero exit on failure):
 .venv312/bin/python scripts/summarize_shadow_metrics.py --log-path ci/key_highlights_shadow.jsonl --tail 50 --min-records 10 --min-valid-rate 0.95 --max-timeout-rate 0.05 --min-promotion-pass-rate 0.70 --enforce-gates
 ```
 
+**Side-by-side comparison of Agent A vs Agent B highlights** (last 5 runs):
+
+```bash
+.venv312/bin/python scripts/compare_shadow_highlights.py
+```
+
+Use `--tail N` to show more runs, `--log-path` to point at a different log file. Each run shows Agent A's actual highlights alongside Agent B's alternative, with overlap ratio and ordering changes.
+
 ## Design Evolution
 
 The system went through four distinct stages across the capstone program:

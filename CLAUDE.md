@@ -57,6 +57,11 @@ bash scripts/setup_claude_code.sh --with-crewai
 .venv312/bin/python scripts/summarize_shadow_metrics.py --log-path ci/key_highlights_shadow.jsonl --tail 50 --min-records 10 --min-valid-rate 0.95 --max-timeout-rate 0.05 --min-promotion-pass-rate 0.70 --enforce-gates
 ```
 
+**Side-by-side Agent A vs Agent B highlights comparison:**
+```bash
+.venv312/bin/python scripts/compare_shadow_highlights.py --tail 5
+```
+
 **Runtime flags:**
 - `--reset-preferences all|digest`: Reset saved preferences and exit
 - `--galileo-observability`: Enable Galileo observability to emit observability events

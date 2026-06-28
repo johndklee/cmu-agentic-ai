@@ -216,6 +216,8 @@ def log_shadow_comparison(payload: dict, result: dict, run_id: str) -> str:
         "empty_result": bool((result or {}).get("empty_result", int((result or {}).get("highlights_count", 0) or 0) == 0)),
         "timed_out": bool((result or {}).get("timed_out", False)),
         "error": str((result or {}).get("error", "") or ""),
+        "agent_a_highlights": current_items,
+        "agent_b_highlights": shadow_items,
     }
 
     SHADOW_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
