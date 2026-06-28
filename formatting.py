@@ -25,9 +25,21 @@ def to_single_line(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+_RICH_TAG_RE = re.compile(
+    r"\[/?"
+    r"(?:bold|italic|underline|strike|dim|blink|reverse|conceal|link"
+    r"|black|red|green|yellow|blue|magenta|cyan|white"
+    r"|bright_black|bright_red|bright_green|bright_yellow|bright_blue|bright_magenta|bright_cyan|bright_white"
+    r"|on\s+\w+|#[0-9a-fA-F]{3,6}|rgb\([^)]+\)"
+    r"|[a-z]+_[a-z]+)"  # snake_case Rich style names e.g. bold_red
+    r"(?:\s[^\]]*)?\]",
+    re.IGNORECASE,
+)
+
+
 def strip_rich_markup(text: str) -> str:
-    """Remove Rich-style markup tags from text."""
-    return re.sub(r"\[/?[^\]]+\]", "", text)
+    """Remove Rich-style markup tags from text, preserving [user]/[VIP]/[other] placeholders."""
+    return _RICH_TAG_RE.sub("", text)
 
 
 def enforce_single_line_digest_fields(text: str) -> str:
