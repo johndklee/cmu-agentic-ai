@@ -24,6 +24,9 @@ export default function App() {
     <div className="app">
       <nav className="nav">
         <span className="nav-title">{navTitle}</span>
+        <a href="/shadow" target="_blank" rel="noopener noreferrer">
+          <button>Lab</button>
+        </a>
       </nav>
       <main>
         {showSettings
