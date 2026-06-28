@@ -86,12 +86,14 @@ def _build_digest_output(selected_ranking: dict[str, Any] | None, raw_fetched_da
 
     calendar_events = raw_fetched_data.get("calendar_events") if isinstance(raw_fetched_data.get("calendar_events"), list) else []
     calendar_text = " ;; ".join(
-        (
-            f"{event.get('summary', '(no title)')} @ {event.get('start', 'unknown')}"
-            + (f" ({event.get('organizer')})" if event.get('organizer') else "")
-            + (f" — {event.get('rendered_attendees')}" if event.get('rendered_attendees') else "")
-            + (f" [[{event['url']}]]" if event.get('url') else "")
-        ).strip()
+        _mask_emails(
+            (
+                f"{event.get('summary', '(no title)')} @ {event.get('start', 'unknown')}"
+                + (f" ({event.get('organizer')})" if event.get('organizer') else "")
+                + (f" — {event.get('rendered_attendees')}" if event.get('rendered_attendees') else "")
+                + (f" [[{event['url']}]]" if event.get('url') else "")
+            ).strip()
+        )
         for event in calendar_events
         if isinstance(event, dict)
     ) or "Unknown"
@@ -108,8 +110,9 @@ def _build_digest_output(selected_ranking: dict[str, Any] | None, raw_fetched_da
     emails = raw_fetched_data.get("emails") if isinstance(raw_fetched_data.get("emails"), list) else []
     emails_text = _join(
         [
-            f"{email.get('subject', '(no subject)')} - Relation: {email.get('direction', 'unknown')} - From: {', '.join(email.get('from_addresses', []) or [])} - To: {', '.join(email.get('to_addresses', []) or [])} - Cc: {', '.join(email.get('cc_addresses', []) or [])} - Date: {email.get('date', 'unknown date')} - Body(3 lines, 280 chars max): {email.get('body_preview', '(no body preview)')}"
-            + (f" [[{email['url']}]]" if email.get('url') else "")
+            _mask_emails(
+                f"{email.get('subject', '(no subject)')} - Relation: {email.get('direction', 'unknown')} - From: {', '.join(email.get('from_addresses', []) or [])} - To: {', '.join(email.get('to_addresses', []) or [])} - Cc: {', '.join(email.get('cc_addresses', []) or [])} - Date: {email.get('date', 'unknown date')} - Body(3 lines, 280 chars max): {email.get('body_preview', '(no body preview)')}"
+            ) + (f" [[{email['url']}]]" if email.get('url') else "")
             for email in emails
             if isinstance(email, dict)
         ]
