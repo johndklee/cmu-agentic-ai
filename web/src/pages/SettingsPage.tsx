@@ -94,7 +94,9 @@ export function SettingsPage({ onBack, onPreferencesSaved }: Props) {
         <input
           value={prefs.preferred_location_text}
           onChange={(e) => setPrefs({ ...prefs, preferred_location_text: e.target.value })}
+          placeholder="e.g. Pittsburgh, PA"
         />
+        <span className="field-hint">Used for local time zone, current weather, and weather-based highlights. Enter a city or city + state.</span>
       </label>
 
       <label>Key highlights count (1–8)
