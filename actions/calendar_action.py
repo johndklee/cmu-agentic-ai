@@ -27,14 +27,12 @@ def _attendee_email(attendee: dict) -> str:
 
 
 def _tagged_email(email: str, preferences: dict) -> str:
-    """Render one email with user/VIP tags."""
-    tags = []
+    """Render one email as a masked label."""
     if is_user_email(email, preferences):
-        tags.append("user")
+        return "[user]"
     if is_vip_email(email, preferences):
-        tags.append("VIP")
-    suffix = f" [{'|'.join(tags)}]" if tags else ""
-    return f"{email}{suffix}"
+        return "[VIP]"
+    return "[other]"
 
 
 def _format_event_attendees(event: dict, preferences: dict, max_per_group: int = 3) -> str:
