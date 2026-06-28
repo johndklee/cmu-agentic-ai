@@ -243,7 +243,12 @@ Once the app is running at **http://localhost:8000**:
 
    ![Digest Feedback](docs/images/digest_feedback.png)
 
-   The more specific the feedback, the better — the episodic memory matches on keywords from the current run context. Corrections are applied in two ways: soft (included in the LLM prompt as mandatory rules) and hard (enforced deterministically in Python after candidate selection, e.g. overdue tasks are always forced to high priority regardless of LLM output). For example:
+   The more specific the feedback, the better — the episodic memory matches on keywords from the current run context. Corrections are applied in two ways: soft (included in the LLM prompt as mandatory rules) and hard (enforced deterministically in Python after candidate selection, regardless of LLM output).
+
+   **Hard-coded rules (always enforced, not configurable via feedback):**
+   - Overdue tasks are forced to `high` priority and injected at the top of key highlights — even if the Strategist omitted them entirely
+
+   For example:
 
    > *"When the temperature is below 65°F, weather should be ranked high priority in key highlights and must include a reminder to bring a light jacket. For example: 'High today is 58°F — bring a light jacket if heading outside.'*
    >
