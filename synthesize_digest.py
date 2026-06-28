@@ -132,7 +132,7 @@ def _build_digest_output(selected_ranking: dict[str, Any] | None, raw_fetched_da
             item_urls[key] = em["url"]
     for i, tk in enumerate(raw_fetched_data.get("tasks") or [], 1):
         key = f"tasks:{tk.get('id') or i}"
-        item_labels[key] = tk.get("title") or "(untitled task)"
+        item_labels[key] = _mask_emails(tk.get("title") or "(untitled task)")
         item_urls[key] = "https://tasks.google.com"
     for i, nw in enumerate(raw_fetched_data.get("news") or [], 1):
         key = f"news:{i}"
