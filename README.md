@@ -1,12 +1,23 @@
-# cmu-agentic-ai
+# Daily Digest Agent: Autonomous Morning Briefings for Busy People
 
-> **For the teaching assistant:** This is a CMU Agentic AI capstone project. This README is written to help you run and evaluate the project locally from scratch. Follow the sections in order — System Requirements → Prerequisites → Quickstart → Environment Variables → Google Services Setup → Run. Everything needed to get the app running is covered here.
+> **For the teaching assistant:** This is a CMU Agentic AI capstone project (Carnegie Mellon University, School of Computer Science, Executive Education — Agentic AI Program). This README is written to help you run and evaluate the project locally from scratch. Follow the sections in order — System Requirements → Prerequisites → Quickstart → Environment Variables → Google Services Setup → Run. Everything needed to get the app running is covered here.
 
-**Daily Digest Agent** is a personal AI assistant that starts your day with a single, prioritized briefing. Every morning it pulls together your Gmail inbox, Google Calendar events, Google Tasks, local weather, and top news headlines — then uses a multi-agent pipeline to rank everything by what matters most to you today and present it as a concise digest in a web UI or your inbox.
+## Problem
 
-The digest is not a raw data dump. It ranks items using a **two-level Tree-of-Thought (ToT) pipeline**, learns from your feedback over time through episodic memory, and enforces your stated priorities (e.g. "overdue tasks are always high priority") deterministically. The goal is to reduce the cognitive overhead of starting the day by surfacing what actually needs your attention — not everything that happened overnight.
+Busy people who rely on multiple digital tools to manage their day face a common friction: first thing in the morning they bounce between email, calendar, tasks, weather, and news to figure out what matters. Important meetings and follow-ups can be buried, and the process is time-consuming and mentally draining. Missed appointments, late responses, and weak daily prioritization create stress and reduce effectiveness.
 
-The agent connects to your personal Google account via OAuth 2.0 (read-only for Gmail and Calendar; read/write for Tasks to create follow-up reminders). No data is stored in the cloud — everything runs locally except the optional Ranking Critic step which sends only sanitized item IDs to Claude, never raw personal content.
+## What It Does
+
+**Daily Digest Agent** solves this by generating a single prioritized morning briefing. At a glance, the user can see:
+
+- Today's most important meetings and potential conflicts
+- Email threads that likely need attention
+- Follow-up tasks and reminders, including overdue items
+- Relevant external context such as weather and news headlines
+
+Successful performance means the user no longer needs to open Gmail, Calendar, and Tasks separately first thing in the morning. The digest surfaces "what really matters today" instead of everything that happened overnight.
+
+The agent connects to your personal Google account via OAuth 2.0 (read-only for Gmail and Calendar; read/write for Tasks to create follow-up reminders). No data is stored in the cloud — everything runs locally except the optional Ranking Critic step which sends only sanitized item IDs to Claude, never raw personal content. The system assumes Google credentials, the workflow controller, and the vector store are available; if they are not, it fails fast rather than silently degrading.
 
 The ranking pipeline works as follows:
 
@@ -360,6 +371,18 @@ Enforce quality gates locally (non-zero exit on failure):
 .venv312/bin/python scripts/summarize_shadow_metrics.py --log-path ci/key_highlights_shadow.jsonl --tail 50 --min-records 10 --min-valid-rate 0.95 --max-timeout-rate 0.05 --min-promotion-pass-rate 0.70 --enforce-gates
 ```
 
+## Design Evolution
+
+The system went through four distinct stages across the capstone program:
+
+1. **ReAct loop (Module 1–2)** — a single LLM loop that both "thought" and "acted." The agent chose which tool to call next, read results, and continued reasoning inside one large prompt. There was no persistent memory, minimal structure, and most control lived inside the model.
+
+2. **Episodic memory added (Module 3)** — ChromaDB was integrated before other orchestration changes. The agent began storing embeddings of past runs and corrections and retrieving them at query time. This turned the system from a stateless ReAct loop into something that could use context and recency when deciding what to highlight.
+
+3. **LangGraph workflow + MCP state (Module 4–5)** — the implicit ReAct loop was replaced with an explicit workflow graph and MCP-style state tracking. Nodes now fetch data, build rankings, run a critic, synthesize the digest, and capture feedback, each with narrow responsibilities and precondition checks. The single agent became a strategist + critic design with a clear privacy boundary between them.
+
+4. **Safety, validation, and observability (Module 6)** — informed by the safety checkpoint, the final layer added structural privacy enforcement for the critic, validation and deterministic fallbacks around all LLM outputs, startup diagnostics, and shadow metrics with explicit quality gates. The result is a workflow-driven, multi-agent system with explicit memory, safety, and observability — rather than a single opaque loop.
+
 ## Architecture Overview
 
 The app has two processes that run together:
@@ -422,6 +445,38 @@ Current shadow metrics (as of last commit):
 - **Promotion pass rate:** 100% (gate: ≥70%)
 - **Average overlap with deterministic output:** 100%
 - **All gates:** PASS
+
+## Evaluation
+
+Evaluation covered both usefulness and reliability.
+
+**Usefulness** was assessed by running the agent on a mix of synthetic and real days and manually checking whether the digest:
+- Surfaced the most important meetings and VIP-related email threads
+- Produced key highlights that felt focused rather than noisy
+- Reduced the need to open Gmail, Calendar, and Tasks first thing in the morning
+
+The web UI feedback form collected satisfaction ratings and short comments, which guided refinements to ranking thresholds and section layout.
+
+**Reliability** was assessed through:
+- Unit tests for episodic memory indexing and retrieval (`tests/`)
+- Startup diagnostics confirming the workflow controller, ChromaDB backend, and Google credentials are available before each run
+- A shadow key highlights agent evaluated via `scripts/summarize_shadow_metrics.py`, which computes schema validity rate, promotion pass rate, and timeout rate with explicit CI quality gates
+
+**Results:** In practice the system produced structured, readable daily digests that reliably highlighted core meetings and important email threads and helped reduce early-morning context-switching. Remaining issues include sensitivity to misconfiguration (missing credentials halt the pipeline with a clear error) and longer-than-ideal digests on very busy days when all item caps are hit.
+
+## Limitations and Next Steps
+
+**Current limitations:**
+- **Narrow data sources** — the system covers Gmail, Calendar, Tasks, weather, and news. It may miss important signals from tools such as CRMs, ticketing systems, Slack, or documentation platforms.
+- **Basic personalization** — the agent respects stated preferences and uses episodic memory for corrections, but does not deeply model long-term goals, project structure, or subtle sender priorities beyond the VIP list.
+- **Modest evaluation** — evaluation relies on unit tests, startup diagnostics, and shadow metrics rather than a large labeled dataset of good and bad digests.
+- **Latency** — the multi-agent, multi-step workflow adds complexity and latency compared to a single-prompt summarizer. First run takes 1–2 minutes.
+
+**Realistic next steps:**
+- Integrate additional tools (Slack, Linear, CRM) while preserving privacy guardrails
+- Deepen personalization based on feedback patterns and long-term episodic context
+- Expand evaluation with more synthetic and real-world scenarios and automated quality dashboards
+- Optimize runtime through parallel tool calls, lighter models for non-critical steps, and prompt and context tuning
 
 ## Notes
 
