@@ -248,6 +248,9 @@ Once the app is running at **http://localhost:8000**:
    **Hard-coded rules (always enforced, not configurable via feedback):**
    - Overdue tasks are forced to `high` priority and injected at the top of key highlights — even if the Strategist omitted them entirely
 
+   **Soft rules (feedback-driven, LLM is instructed but not guaranteed):**
+   - Everything stored in episodic memory — weather priority, news ranking, jacket reminders, VIP emphasis — is retrieved and injected into the Strategist prompt as mandatory instructions. The LLM usually follows them, but soft rules can be missed if the similarity retrieval score is low, if the prompt is too long, or if the model drifts under conflicting signals. If a correction is critical enough to always apply, it should be promoted to a hard rule in code rather than left as a soft prompt instruction.
+
    For example:
 
    > *"When the temperature is below 65°F, weather should be ranked high priority in key highlights and must include a reminder to bring a light jacket. For example: 'High today is 58°F — bring a light jacket if heading outside.'*
