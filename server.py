@@ -3,6 +3,8 @@
 import importlib.util
 import json
 import os
+import warnings
+warnings.filterwarnings("ignore", message="resource_tracker: There appear to be", category=UserWarning)
 from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
