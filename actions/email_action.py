@@ -37,13 +37,12 @@ def _format_address_list_with_tags(addresses: list, preferences: dict) -> str:
         return "(none)"
     rendered = []
     for address in addresses:
-        tags = []
         if is_user_email(address, preferences):
-            tags.append("user")
-        if is_vip_email(address, preferences):
-            tags.append("VIP")
-        suffix = f" [{'|'.join(tags)}]" if tags else ""
-        rendered.append(f"{address}{suffix}")
+            rendered.append("[user]")
+        elif is_vip_email(address, preferences):
+            rendered.append("[VIP]")
+        else:
+            rendered.append("[other]")
     return ", ".join(rendered)
 
 
