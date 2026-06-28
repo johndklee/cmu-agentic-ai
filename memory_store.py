@@ -380,3 +380,15 @@ def format_retrieved_corrections(records: list) -> str:
             f"{idx}. type={correction_type}; ts={timestamp_utc}; score={score:.3f}; correction={correction_text}{stale_suffix}"
         )
     return "\n".join(lines)
+
+
+
+# Module-level singleton — reuses the loaded SentenceTransformer across all callers.
+_shared_store: "EpisodicMemoryStore | None" = None
+
+
+def get_shared_store() -> "EpisodicMemoryStore":
+    global _shared_store
+    if _shared_store is None:
+        _shared_store = EpisodicMemoryStore()
+    return _shared_store

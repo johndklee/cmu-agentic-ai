@@ -115,7 +115,8 @@ def episodic_consistency_tool(candidate_json: str, item_map_json: str) -> str:
         query_parts.append(f"{summary} priority={priority} reason={reason}")
 
     query = " | ".join(query_parts)
-    store = EpisodicMemoryStore()
+    from memory_store import get_shared_store
+    store = get_shared_store()
     matches = store.retrieve_similar(query, correction_type="priority_override", top_k=5)
 
     if not matches:

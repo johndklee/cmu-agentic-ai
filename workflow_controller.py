@@ -76,7 +76,8 @@ def retrieval_node(state: WorkflowState) -> WorkflowState:
         query_parts.append("overdue task high priority past due date")
 
     query = " | ".join(part for part in query_parts if part).strip()
-    store = EpisodicMemoryStore()
+    from memory_store import get_shared_store
+    store = get_shared_store()
     if not store.vector_enabled:
         raise RuntimeError(
             "Vector backend is required for retrieval node but is unavailable. "

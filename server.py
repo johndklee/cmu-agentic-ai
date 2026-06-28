@@ -19,7 +19,7 @@ from digest_rendering import render_json_digest
 from actions.email_action import send_email_action
 from feedback_agent import apply_feedback
 from llm_client import ANTHROPIC_DEFAULT_MODEL, OLLAMA_DEFAULT_MODEL
-from memory_store import EpisodicMemoryStore
+from memory_store import EpisodicMemoryStore, get_shared_store
 from preferences import load_preferences, save_preferences, get_user_identity, get_vip_emails, reset_all_preferences, reset_digest_preferences
 from workflow_controller import run_workflow_digest, build_workflow_graph
 
@@ -30,8 +30,8 @@ if importlib.util.find_spec("crewai") is None:
     )
 print("✅ CrewAI available")
 
-# Initialize memory store once at module load so embedding model is ready before requests arrive.
-_memory_store = EpisodicMemoryStore()
+# Initialize shared memory store once at module load so the SentenceTransformer is not reloaded on every request.
+_memory_store = get_shared_store()
 
 
 @asynccontextmanager
