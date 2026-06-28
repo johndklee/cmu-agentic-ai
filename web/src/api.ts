@@ -89,6 +89,17 @@ export interface Preferences {
   preferred_highlight_count: number;
 }
 
+export interface DigestStatus {
+  running: boolean;
+  steps: Array<{ node: string; state?: Record<string, unknown> }>;
+}
+
+export async function fetchDigestStatus(): Promise<DigestStatus> {
+  const res = await fetch(`${BASE}/digest/status`);
+  if (!res.ok) return { running: false, steps: [] };
+  return res.json();
+}
+
 export async function fetchLastDigest(): Promise<DigestResponse | null> {
   const res = await fetch(`${BASE}/digest/last`);
   if (res.status === 404) return null;

@@ -33,6 +33,15 @@ print("✅ CrewAI available")
 # Initialize shared memory store once at module load so the SentenceTransformer is not reloaded on every request.
 _memory_store = get_shared_store()
 
+# ---------------------------------------------------------------------------
+# Digest run state — shared across requests so browser refreshes can reconnect
+# ---------------------------------------------------------------------------
+import threading as _threading
+
+_digest_lock = _threading.Lock()
+_digest_running = False
+_digest_steps: list[dict] = []  # accumulated steps for reconnecting clients
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -442,14 +451,27 @@ def get_last_digest():
     return digest
 
 
+@app.get("/api/digest/status")
+def get_digest_status():
+    """Return whether a digest run is currently in progress and any accumulated steps."""
+    with _digest_lock:
+        return {"running": _digest_running, "steps": list(_digest_steps)}
+
+
 @app.get("/api/digest/stream")
 def stream_digest():
+    global _digest_running, _digest_steps
     memory_status = _memory_store.backend_status()
     if not memory_status.get("vector_enabled"):
         raise HTTPException(status_code=503, detail="Vector backend unavailable")
 
+    with _digest_lock:
+        if _digest_running:
+            raise HTTPException(status_code=409, detail="A digest run is already in progress")
+        _digest_running = True
+        _digest_steps = []
+
     def _safe(obj):
-        """Make a workflow state value JSON-serialisable."""
         try:
             _json.dumps(obj)
             return obj
@@ -457,6 +479,7 @@ def stream_digest():
             return str(obj)
 
     def event_stream():
+        global _digest_running, _digest_steps
         try:
             graph = build_workflow_graph()
             final_state = {}
@@ -464,6 +487,8 @@ def stream_digest():
                 for node_name, node_state in step.items():
                     safe_state = {k: _safe(v) for k, v in (node_state or {}).items()}
                     payload = _json.dumps({"node": node_name, "state": safe_state})
+                    with _digest_lock:
+                        _digest_steps.append({"node": node_name, "state": safe_state})
                     yield f"data: {payload}\n\n"
                     final_state.update(node_state or {})
 
@@ -477,6 +502,10 @@ def stream_digest():
                 _maybe_email_digest(digest_output)
         except Exception as exc:
             yield f"data: {_json.dumps({'node': '__error__', 'error': str(exc)})}\n\n"
+        finally:
+            with _digest_lock:
+                _digest_running = False
+                _digest_steps = []
         yield "data: {\"node\": \"__done__\"}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchLastDigest, streamDigest, type DigestResponse, type DigestStep } from "../api";
+import { fetchLastDigest, fetchDigestStatus, streamDigest, NODE_LABELS, type DigestResponse, type DigestStep } from "../api";
 import { ContextBar } from "../components/ContextBar";
 import { DigestPanel } from "../components/DigestPanel";
 import { FeedbackForm } from "../components/FeedbackForm";
@@ -24,9 +24,29 @@ export function DigestPage({ onEditSettings, contextRefresh = 0 }: Props) {
   const cancelRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    fetchLastDigest()
-      .then((d) => { if (d) { setDigest(d); setStatus("done"); } })
-      .catch(() => {});
+    fetchDigestStatus().then((s) => {
+      if (s.running) {
+        // A run is in progress — show accumulated steps and connect to the stream
+        const prior = s.steps.map(({ node }) => ({
+          label: NODE_LABELS[node] ?? `Running ${node}…`,
+        }));
+        setSteps(prior);
+        setStatus("loading");
+        cancelRef.current = streamDigest(
+          (step) => setSteps((prev) => [...prev, step]),
+          (d) => { setDigest(d); setStatus("done"); },
+          (msg) => { setError(msg); setStatus("error"); },
+        );
+      } else {
+        fetchLastDigest()
+          .then((d) => { if (d) { setDigest(d); setStatus("done"); } })
+          .catch(() => {});
+      }
+    }).catch(() => {
+      fetchLastDigest()
+        .then((d) => { if (d) { setDigest(d); setStatus("done"); } })
+        .catch(() => {});
+    });
     return () => cancelRef.current?.();
   }, []);
 
