@@ -238,7 +238,7 @@ Once the app is running at **http://localhost:8000**:
 
    The more specific the feedback, the better — the episodic memory matches on keywords from the current run context. Corrections are applied in two ways: soft (included in the LLM prompt as mandatory rules) and hard (enforced deterministically in Python after candidate selection, e.g. overdue tasks are always forced to high priority regardless of LLM output). For example:
 
-   > *"When the temperature is below 65°F, the weather key highlight should always include a reminder to bring a light jacket. For example: 'High today is 58°F — bring a light jacket if heading outside.'*
+   > *"When the temperature is below 65°F, weather should be ranked high priority in key highlights and must include a reminder to bring a light jacket. For example: 'High today is 58°F — bring a light jacket if heading outside.'*
    >
    > *News headlines should always be ranked low priority in key highlights. Calendar events, tasks, and emails should rank above news regardless of the headline content."*
 
