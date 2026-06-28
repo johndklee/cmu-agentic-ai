@@ -240,6 +240,7 @@ Once the app is running at **http://localhost:8000**:
 
    | Preference | Applied as |
    |---|---|
+   | Location (city/state) | Hard — resolved to coordinates at save time; drives time zone, weather fetch, and weather-based highlights |
    | VIP email addresses | Soft — passed to Strategist prompt; LLM is told to prioritize but not guaranteed |
    | Number of highlights | Hard — digest is sliced to exactly this count in Python after selection |
    | Temperature unit | Hard — applied at render time in Python, not LLM-controlled |
