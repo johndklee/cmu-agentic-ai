@@ -110,10 +110,16 @@ def _fetch_ollama_model_context_window(base_url: str, model: str) -> int:
     details = parsed.get("details") or {}
     model_info = parsed.get("model_info") or {}
 
+    # Try known model-family context_length keys; fall back to any *context_length key
+    family_ctx = next(
+        (v for k, v in model_info.items() if k.endswith(".context_length")),
+        None,
+    )
     for candidate in (
         details.get("context_length"),
         model_info.get("llama.context_length"),
         model_info.get("general.context_length"),
+        family_ctx,
     ):
         value = _extract_positive_int(candidate)
         if value:
