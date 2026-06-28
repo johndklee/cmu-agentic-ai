@@ -423,6 +423,52 @@ Enforce quality gates locally (non-zero exit on failure):
 
 Use `--tail N` to show more runs, `--log-path` to point at a different log file. Each run shows Agent A's actual highlights alongside Agent B's alternative, with overlap ratio and ordering changes.
 
+## Shadow Mode as an A/B Testing Framework
+
+Shadow mode is more than a validation step for one agent swap — it is an architectural pattern for safely evolving any part of an agentic system without exposing users to unvalidated changes.
+
+### Why A/B testing is harder for agents than for web services
+
+In a traditional web service, A/B testing is straightforward: route a percentage of traffic to variant B, measure click-through or conversion, and flip the flag when B wins. The output is a response object and correctness is measurable by downstream user behavior.
+
+With agents, the "output" is often an action in the world — a task created, a notification sent, a calendar entry modified. You cannot run both A and B and pick the winner; B's side effects would be real. Shadow mode solves this by requiring that **shadow agents are read-only and silent** — they observe the same inputs and produce an alternative output, but never act on it. That constraint shapes the entire design.
+
+### What this implementation tests
+
+The specific question here: does the Tree-of-Thought multi-candidate ranking pipeline (L1 → prune → L2 → select) produce meaningfully better key highlights than a simpler single-pass agent?
+
+ToT adds latency (multiple LLM calls, critic scoring, L2 refinement) and complexity. Agent B tests the hypothesis that a single-pass approach may produce equivalent highlights at far lower cost. If overlap stays high and quality gates pass consistently, the ToT pipeline's complexity is not adding value for this step — and B could replace it with a significant latency reduction. If B diverges or misses important items, the ToT approach is validated.
+
+### The promotion gate is the hardest design decision
+
+Logging metrics is straightforward. Deciding *when to trust B over A* is not — there is no ground-truth label for which highlights were actually most useful. The gates used here (overlap ratio, schema validity, confidence, ordering changes) are all **proxy metrics**. They measure agreement with A and structural soundness, not actual user value.
+
+This creates a bootstrapping problem: you need user feedback to trust the metrics, but users have only seen Agent A's output. The feedback loop (episodic corrections) accumulates signal for A, not B. One forward path is **shadowed preference learning**: once B is promoted, keep A running as shadow against B to confirm the new baseline did not regress.
+
+### The pattern generalizes to any agent swap
+
+The shadow infrastructure — thread-pool call, timeout fallback, JSONL log, CI metric gate — is reusable for any component replacement:
+
+| What you want to test | Shadow target |
+|---|---|
+| Different ranking model (llama → qwen) | Strategist output |
+| More aggressive VIP detection rule | Key highlights filter |
+| Alternative episodic retrieval strategy | Correction retrieval |
+| Different synthesizer prompt | Digest output |
+| Smaller/faster critic model | Coherence scores |
+
+The invariant in every case: **shadow agents must be stateless with respect to external systems**. They read but never write, create tasks, or send notifications.
+
+### What a production-grade version would add
+
+The current implementation is Phase 1 — it establishes measurement before any promotion decision, which is the right order. Maturing it further would require:
+
+1. **Labeled evaluation** — overlap ratio assumes A is ground truth. Human ratings or downstream task-completion signals are needed to know which output is actually better.
+2. **Gradual rollout** — a hard promotion (flip a flag on all runs) is risky. Production systems shadow B, then serve B to a small percentage of runs while still shadowing A, then ramp up based on metrics.
+3. **Automated rollback** — if a metric degrades after promotion, what triggers a revert? Currently that is manual; a production gate would auto-revert on metric regression over a rolling window.
+4. **Per-user promotion** — shadow metrics are currently global. In a multi-tenant system, each user's feedback history might warrant different promotion timing.
+5. **Observability integration** — shadow comparison events should feed into the same observability pipeline (Galileo or equivalent) as main-path LLM calls, so trends are visible across both agents in the same dashboard.
+
 ## Design Evolution
 
 The system went through four distinct stages across the capstone program:
@@ -534,6 +580,7 @@ The web UI feedback form collected satisfaction ratings and short comments, whic
 - Deepen personalization based on feedback patterns and long-term episodic context
 - Expand evaluation with more synthetic and real-world scenarios and automated quality dashboards
 - Optimize runtime through parallel tool calls, lighter models for non-critical steps, and prompt and context tuning
+- Mature the shadow mode A/B framework: labeled evaluation, gradual rollout, automated rollback, and per-user promotion — see [Shadow Mode as an A/B Testing Framework](#shadow-mode-as-an-ab-testing-framework) for the full roadmap
 
 ## Notes
 
