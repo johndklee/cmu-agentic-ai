@@ -30,14 +30,19 @@ from workflow_state import WorkflowState
 def _select_best_candidate(
     candidate_rankings: list[dict[str, Any]],
     scores: list[dict[str, Any]],
+    min_entries: int = 3,
 ) -> dict[str, Any] | None:
-    """Select the highest-scoring candidate ranking."""
+    """Select the highest-scoring candidate ranking with sufficient entries."""
     if not candidate_rankings:
         return None
 
+    # Prefer candidates with enough entries; fall back to any if none qualify
+    sufficient = [c for c in candidate_rankings if isinstance(c, dict) and len(c.get("ranking") or []) >= min_entries]
+    pool = sufficient or candidate_rankings
+
     by_id = {
         str(candidate.get("candidate_id") or ""): candidate
-        for candidate in candidate_rankings
+        for candidate in pool
         if isinstance(candidate, dict)
     }
     ordered_scores = sorted(scores or [], key=lambda row: float(row.get("total", 0.0)), reverse=True)
@@ -46,7 +51,7 @@ def _select_best_candidate(
         if candidate_id in by_id:
             return by_id[candidate_id]
 
-    return candidate_rankings[0] if candidate_rankings else None
+    return pool[0] if pool else None
 
 
 def _build_digest_output(selected_ranking: dict[str, Any] | None, raw_fetched_data: dict[str, Any]) -> dict[str, Any]:
@@ -202,6 +207,8 @@ def _enforce_episodic_corrections(
         return selected
 
     ranking = list(selected.get("ranking") or [])
+    ranked_ids = {entry.get("item_id") for entry in ranking if isinstance(entry, dict)}
+
     promoted, rest = [], []
     for entry in ranking:
         if not isinstance(entry, dict):
@@ -215,6 +222,17 @@ def _enforce_episodic_corrections(
             promoted.append(entry)
         else:
             rest.append(entry)
+
+    # Inject overdue tasks missing from the ranking entirely
+    for i, task in enumerate(tasks, 1):
+        task_id = f"tasks:{task.get('id') or i}"
+        if task_id in overdue_ids and task_id not in ranked_ids:
+            promoted.insert(0, {
+                "item_id": task_id,
+                "source": "tasks",
+                "priority": "high",
+                "reason": f"Overdue — {task.get('title', 'Task')} was due {(task.get('due') or '')[:10]} and requires immediate attention.",
+            })
 
     result = dict(selected)
     result["ranking"] = promoted + rest

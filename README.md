@@ -368,6 +368,18 @@ Agent B runs silently on every digest and logs results to `.memory/key_highlight
 
 **Lab UI** — a dedicated shadow comparison page is available at `http://localhost:8000/shadow`. It shows each run as a card with Agent A and Agent B highlights side by side, overlap ratio, ordering changes, confidence, and schema validity badges. A **Lab** button in the main nav opens it in a new tab.
 
+With real runs accumulating, the Lab UI reveals the practical difference between the two approaches. Early results show 75–80% overlap with ordering delta 0 — Agent B (single-pass) consistently finds the same items as Agent A (ToT multi-candidate) but occasionally sequences them differently. Schema validity has been 100% across all runs and timeouts are 0%.
+
+The current Agent B tests a simpler alternative, but shadow mode is not limited to validating simpler or faster approaches. It is a general evaluation harness for any challenger — including ones that are more complex, use a different model, apply a different retrieval strategy, or introduce a completely different ranking logic. The key constraint is the same regardless: the challenger must be read-only and never act on its output until promoted.
+
+**What to watch for as more runs accumulate:**
+
+- **Overlap staying 75%+** on typical days → Agent B is finding the same items; divergence on ordering is the interesting signal to investigate
+- **Overlap dropping below 60% on busy days** → the two approaches are making meaningfully different prioritization decisions; neither is automatically correct — this is where user feedback becomes the tiebreaker
+- **Ordering delta increasing** → agents agree on *what* to include but disagree on *priority order*; compare against episodic corrections to see which ordering better matches stated preferences
+- **Confidence rising from medium to high** → Agent B's outputs are becoming more structurally consistent; a prerequisite for any promotion consideration
+- **A more complex challenger diverging** → high divergence is not a failure; it is the signal you are looking for — use the Lab UI to inspect *which* items differ and whether the challenger's choices are defensible
+
 **Diagnostics panel** — the main app diagnostics panel includes a Shadow Mode section showing local run count and the latest CI gate results (schema validity, timeout rate, overlap, promotion pass rate) at a glance. A stuck run counter or a failing gate is immediately visible without running any scripts.
 
 Prepare the CI contract log snapshot:
@@ -462,7 +474,7 @@ The app has two processes: a FastAPI backend (`server.py`, port 8000) that hosts
 | Framework | Role |
 |---|---|
 | **LangGraph** | Orchestrates the end-to-end workflow as a directed graph — manages node sequencing, conditional routing (e.g. critic decides whether to refine or proceed), and state passing between steps |
-| **LangChain Core** | Provides the LLM client abstraction used by the Critic to call Claude; also supplies tool-calling utilities used during candidate scoring |
+| **LangChain Core** | Provides the `@tool` decorator used in `critic_tools.py` to define the three structured Critic scoring functions as typed, schema-validated tools. The Anthropic SDK handles the Claude API calls directly — LangChain Core's role is limited to tool definition |
 | **CrewAI** | Defines the **Ranking Strategist** agent (uses Ollama/qwen3:8b to generate and refine candidate rankings) and manages its role definition and LLM binding. The Ranking Critic calls Claude directly via the Anthropic API rather than through a CrewAI crew — this avoids subprocess spawning overhead that was causing the embedding model to reload on every scoring call |
 | **FastMCP** | Runs a lightweight MCP (Model Context Protocol) server on port 8001 that tracks Tree-of-Thought branch state across workflow steps — specifically: storing the 5 L1 candidate rankings, recording Critic scores and pruning decisions, and tracking L2 refinement rounds. This gives each agent a shared, structured view of the ToT search tree without passing large blobs through LangGraph state |
 | **ChromaDB** | Vector database that persists episodic memory — stores user feedback corrections as embeddings so past preferences can be retrieved and applied to future digests |
